@@ -5,6 +5,12 @@ import json
 import io
 import os
 from PIL import Image
+from image_generation import (
+    IMAGE_BACKENDS,
+    extension_for_mime_type,
+    generate_gemini_image,
+    generate_openai_image,
+)
 from wavemaker_strategy import (
     CULTURAL_VOICE_PLAYBOOKS,
     IMAGE_ENGINE_PLAYBOOKS,
@@ -37,7 +43,17 @@ def load_kb_content(filename):
         except: return "(Error reading KB)"
     return "(General Mode)"
 
-def render_campaign_pack(post, index=None):
+def render_campaign_pack(
+    post,
+    index=None,
+    image_backend="Prompt only (0 cost)",
+    gemini_image_api_key="",
+    openai_api_key="",
+    gemini_image_aspect_ratio="1:1",
+    gemini_image_size="512",
+    openai_image_size="1024x1024",
+    openai_image_quality="low",
+):
     title_prefix = f"📄 #{index + 1} " if index is not None else ""
     primary_post = post.get("primary_post", {})
     visual_prompts = post.get("visual_prompts", {})
@@ -98,6 +114,62 @@ def render_campaign_pack(post, index=None):
                 language=None,
             )
 
+        st.markdown("#### 實際文生圖")
+        if image_backend == "Prompt only (0 cost)":
+            st.caption("目前為 0 成本模式：不呼叫任何生圖 API，只輸出可複製的提示詞。")
+        else:
+            if image_backend == "Gemini Image (low cost)":
+                generation_prompt = (
+                    visual_prompts.get("gemini_image_prompt")
+                    or visual_prompts.get("nano_banana_prompt", "")
+                )
+            else:
+                generation_prompt = visual_prompts.get("chatgpt_image_prompt", "")
+
+            if not generation_prompt:
+                st.warning("這篇 Campaign Pack 沒有可用的文生圖提示詞。")
+            elif st.button(
+                f"生成 1 張圖片 - {image_backend}",
+                key=f"generate_image_{index}_{image_backend}",
+            ):
+                with st.spinner("正在生成 1 張圖片，避免批量消耗額度..."):
+                    try:
+                        if image_backend == "Gemini Image (low cost)":
+                            image_bytes, mime_type = generate_gemini_image(
+                                gemini_image_api_key,
+                                generation_prompt,
+                                aspect_ratio=gemini_image_aspect_ratio,
+                                image_size=gemini_image_size,
+                            )
+                        else:
+                            image_bytes, mime_type = generate_openai_image(
+                                openai_api_key,
+                                generation_prompt,
+                                size=openai_image_size,
+                                quality=openai_image_quality,
+                            )
+
+                        state_key = f"generated_image_{index}_{image_backend}"
+                        st.session_state[state_key] = {
+                            "bytes": image_bytes,
+                            "mime_type": mime_type,
+                        }
+                    except Exception as e:
+                        st.error(f"圖片生成失敗：{e}")
+
+            state_key = f"generated_image_{index}_{image_backend}"
+            generated = st.session_state.get(state_key)
+            if generated:
+                st.image(generated["bytes"], caption=f"{image_backend} 生成結果", use_container_width=True)
+                extension = extension_for_mime_type(generated["mime_type"])
+                st.download_button(
+                    "下載生成圖片",
+                    generated["bytes"],
+                    file_name=f"wavemaker_generated_{index + 1 if index is not None else 1}.{extension}",
+                    mime=generated["mime_type"],
+                    key=f"download_image_{index}_{image_backend}",
+                )
+
         if visual_insights:
             st.markdown("#### 看圖說故事洞察")
             st.write("**圖片觀察**")
@@ -156,6 +228,7 @@ def flatten_campaign_pack(post):
 # --- 3. UI 側邊欄 ---
 st.sidebar.title("🌊 設定中心")
 api_key = st.sidebar.text_input("輸入 Gemini API Key", type="password")
+openai_api_key = st.sidebar.text_input("輸入 OpenAI API Key（選填，只有使用 OpenAI 生圖時需要）", type="password")
 domain_list = get_domain_names()
 selected_domain = st.sidebar.selectbox("選擇造浪領域", domain_list)
 current_config = get_engine_config(selected_domain)
@@ -184,6 +257,27 @@ strategy_profile = build_strategy_profile(
 
 with st.sidebar.expander("查看目前策略設定"):
     st.json(strategy_profile)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🧩 AI 後台模型設定")
+st.sidebar.caption("預設 0 成本：只產 prompt，不自動生圖。按單篇生成按鈕才會消耗 API 額度。")
+copy_model = st.sidebar.selectbox("文案 / 策略模型", ["Gemini 2.5 Flash"], index=0)
+image_backend = st.sidebar.selectbox("實際文生圖後台", list(IMAGE_BACKENDS.keys()), index=0)
+st.sidebar.info(f"{IMAGE_BACKENDS[image_backend]['cost_mode']}：{IMAGE_BACKENDS[image_backend]['description']}")
+
+if image_backend == "Gemini Image (low cost)":
+    gemini_image_aspect_ratio = st.sidebar.selectbox("Gemini 圖像比例", ["1:1", "4:5", "9:16", "16:9"], index=0)
+    gemini_image_size = st.sidebar.selectbox("Gemini 圖像尺寸", ["512", "1K"], index=0)
+else:
+    gemini_image_aspect_ratio = "1:1"
+    gemini_image_size = "512"
+
+if image_backend == "OpenAI Image (low cost)":
+    openai_image_size = st.sidebar.selectbox("OpenAI 圖像尺寸", ["1024x1024", "1024x1536", "1536x1024"], index=0)
+    openai_image_quality = st.sidebar.selectbox("OpenAI 圖像品質", ["low", "medium", "high"], index=0)
+else:
+    openai_image_size = "1024x1024"
+    openai_image_quality = "low"
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎨 多引擎圖像生成中心")
@@ -238,7 +332,17 @@ with tab_text:
                     data = parse_json_response(res.text)
 
                     for i, post in enumerate(data):
-                        render_campaign_pack(post, i)
+                        render_campaign_pack(
+                            post,
+                            i,
+                            image_backend=image_backend,
+                            gemini_image_api_key=api_key,
+                            openai_api_key=openai_api_key,
+                            gemini_image_aspect_ratio=gemini_image_aspect_ratio,
+                            gemini_image_size=gemini_image_size,
+                            openai_image_size=openai_image_size,
+                            openai_image_quality=openai_image_quality,
+                        )
 
                     df = pd.DataFrame([flatten_campaign_pack(post) for post in data])
                     buffer = io.BytesIO()
@@ -281,7 +385,17 @@ with tab_vision:
                                 # 修正: 使用 use_container_width 消除警告
                                 st.image(uploaded_files[i], caption=f"圖片 #{i+1}", use_container_width=True)
                             with col_txt:
-                                render_campaign_pack(post, i)
+                                render_campaign_pack(
+                                    post,
+                                    i,
+                                    image_backend=image_backend,
+                                    gemini_image_api_key=api_key,
+                                    openai_api_key=openai_api_key,
+                                    gemini_image_aspect_ratio=gemini_image_aspect_ratio,
+                                    gemini_image_size=gemini_image_size,
+                                    openai_image_size=openai_image_size,
+                                    openai_image_quality=openai_image_quality,
+                                )
 
                         df = pd.DataFrame([flatten_campaign_pack(post) for post in data])
                         buffer = io.BytesIO()
@@ -327,7 +441,17 @@ with tab_vision:
                                 res = model.generate_content(final_prompt)
                                 data = parse_json_response(res.text)
                                 for i, post in enumerate(data):
-                                    render_campaign_pack(post, i)
+                                    render_campaign_pack(
+                                        post,
+                                        i,
+                                        image_backend=image_backend,
+                                        gemini_image_api_key=api_key,
+                                        openai_api_key=openai_api_key,
+                                        gemini_image_aspect_ratio=gemini_image_aspect_ratio,
+                                        gemini_image_size=gemini_image_size,
+                                        openai_image_size=openai_image_size,
+                                        openai_image_quality=openai_image_quality,
+                                    )
                             except Exception as e:
                                 st.error(f"生成失敗: {e}")
 

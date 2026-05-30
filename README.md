@@ -16,6 +16,7 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
 - **7-Domain Knowledge Bank**: Built-in strategies for AI, Business, Law, Food, Travel, Health, and Beauty.
 - **Expandable Domain Playbooks**: The 7 professional domains are preserved in one workflow layer and can be extended by adding a new domain config and knowledge-bank file.
 - **Multi-Engine Image Prompts**: Converts approved copy into text-to-image prompts for **ChatGPT Image 2**, **Gemini 3.1 Flash Image / Nano Banana**, and **Midjourney**.
+- **Optional Real Image Generation**: Defaults to **Prompt only (0 cost)**, with on-demand low-cost generation through Gemini Image or OpenAI Image.
 - **Strategic Output**: Unlike generic AI, it embeds specific marketing hooks and "Woo Factors" based on the chosen domain.
 - **Campaign Pack Output**: Generates a publish-ready package with primary copy, short/long variants, spoken scripts, hooks, CTA, hashtags, visual prompts, comment starters, risk review, and rewrite notes.
 - **Maturity Scoring**: Uses a 100-point readiness rubric covering TA fit, platform-native language, hook strength, product clarity, human voice, action trigger, and brand safety.
@@ -34,6 +35,7 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
 - **Workflow-Aware Output**: Vision mode now follows the same platform, persona, cultural voice, and maturity-target settings as text mode.
 - **Image-to-Story Insights**: Each visual Campaign Pack can include image observation, story angle, and practical editing suggestions.
 - **Copy-to-Image Brief**: Each Campaign Pack includes a creative direction, social format, on-image text, visual safety notes, and engine-specific prompts.
+- **Cost Guardrail**: The app never auto-generates images in bulk. Users must click a per-post button to generate exactly one image.
 
 ## 🛠️ How to Use (如何使用)
 
@@ -49,12 +51,14 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
    - **Text Mode**: Enter a topic (e.g., "Kyoto Hidden Gems") and click Generate.
    - **Vision Mode**: Upload an image and choose "Auto" or "Co-pilot".
 6. **Create Visuals**: Paste the engine-specific image prompt into ChatGPT, Gemini / Nano Banana, or Midjourney.
-7. **Download**: Get your Campaign Pack in a structured **Excel report**.
+7. **Optional Low-Cost Generation**: Switch from `Prompt only (0 cost)` to Gemini Image or OpenAI Image, then generate one image at a time.
+8. **Download**: Get your Campaign Pack in a structured **Excel report** and download generated images when available.
 
 ## 🏗️ Tech Stack (技術架構)
 
 - **Frontend**: Streamlit
 - **AI Core**: Google Gemini 2.5 Flash (via `google-generativeai`)
+- **Optional Image Generation**: Gemini 3.1 Flash Image / Nano Banana (`google-genai`) and OpenAI `gpt-image-2` (`openai`)
 - **Data Handling**: Pandas, OpenPyXL
 - **Image Processing**: Pillow
 - **Workflow Layer**: `wavemaker_strategy.py`
