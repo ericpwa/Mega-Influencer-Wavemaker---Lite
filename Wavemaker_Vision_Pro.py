@@ -5,6 +5,17 @@ import json
 import io
 import os
 from PIL import Image
+from wavemaker_strategy import (
+    CULTURAL_VOICE_PLAYBOOKS,
+    PERSONA_PLAYBOOKS,
+    PLATFORM_PLAYBOOKS,
+    build_campaign_prompt,
+    build_strategy_profile,
+    build_vision_campaign_prompt,
+    get_domain_config,
+    get_domain_names,
+    parse_json_response,
+)
 
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(
@@ -16,44 +27,7 @@ st.set_page_config(
 
 # --- 2. 核心邏輯：視覺工程參數庫 ---
 def get_engine_config(domain):
-    configs = {
-        "Food & Cooking": {
-            "mj": "--ar 4:5 --style raw --v 6.0", 
-            "banana": "Render 'Dish Name' elegantly on a menu card.",
-            "icon": "🍳", "kb_file": "KB_04_Food_Cooking.txt"
-        },
-        "Travel & Lifestyle": {
-            "mj": "--ar 16:9 --stylize 250 --v 6.0", 
-            "banana": "Render 'Location Name' on a vintage sign.",
-            "icon": "✈️", "kb_file": "KB_05_Travel_Lifestyle.txt"
-        },
-        "AI Workplace": {
-            "mj": "--ar 1:1 --chaos 20 --v 6.0", 
-            "banana": "Render keywords on holographic UI.",
-            "icon": "🤖", "kb_file": "KB_01_AI_Workplace.txt"
-        },
-        "Corporate Strategy": {
-            "mj": "--ar 3:2 --style raw --v 6.0", 
-            "banana": "Render title on presentation slide.",
-            "icon": "💼", "kb_file": "KB_02_Corporate_Strategy.txt"
-        },
-        "Labor Law": {
-            "mj": "--ar 16:9 --no blur --v 6.0",
-            "banana": "Render legal terms on documents.",
-            "icon": "⚖️", "kb_file": "KB_03_Labor_Law.txt"
-        },
-        "Health & Wellness": {
-            "mj": "--ar 4:5 --stylize 100",
-            "banana": "Render health stats on smart watch.",
-            "icon": "🌿", "kb_file": "KB_06_Health_Wellness.txt"
-        },
-        "Beauty & Skincare": {
-            "mj": "--ar 4:5 --no skin_smoothing --v 6.0", 
-            "banana": "Render product name on bottle.",
-            "icon": "💄", "kb_file": "KB_07_Beauty_Skincare.txt"
-        }
-    }
-    return configs.get(domain, {"mj": "--ar 1:1", "banana": "Standard Text", "icon": "❓", "kb_file": ""})
+    return get_domain_config(domain)
 
 def load_kb_content(filename):
     if filename and os.path.exists(filename):
@@ -62,12 +36,120 @@ def load_kb_content(filename):
         except: return "(Error reading KB)"
     return "(General Mode)"
 
+def render_campaign_pack(post, index=None):
+    title_prefix = f"📄 #{index + 1} " if index is not None else ""
+    primary_post = post.get("primary_post", {})
+    visual_prompts = post.get("visual_prompts", {})
+    visual_insights = post.get("visual_insights", {})
+    platform_variants = post.get("platform_variants", {})
+
+    with st.expander(f"{title_prefix}{primary_post.get('hook_title', 'Campaign Pack')}", expanded=True):
+        score = post.get("maturity_score", "N/A")
+        readiness = post.get("readiness_level", "N/A")
+        st.metric("成熟度 / 可發布度", f"{score}/100" if isinstance(score, int) else score, readiness)
+
+        st.markdown("#### 主文案")
+        st.subheader(primary_post.get("hook_title", ""))
+        st.write(primary_post.get("caption_body", ""))
+        st.caption(primary_post.get("cta", ""))
+        hashtags = primary_post.get("hashtags", [])
+        if hashtags:
+            st.code(" ".join(hashtags), language=None)
+
+        st.markdown("#### Hook 候選")
+        for hook in post.get("hook_candidates", []):
+            st.write(f"- {hook}")
+
+        st.markdown("#### 平台變體")
+        st.write("**短版**")
+        st.write(platform_variants.get("short_post", ""))
+        st.write("**長版**")
+        st.write(platform_variants.get("long_post", ""))
+        st.write("**口播版**")
+        st.write(platform_variants.get("spoken_script", ""))
+
+        st.markdown("#### 視覺提示詞")
+        st.code(visual_prompts.get("mj_prompt", ""), language=None)
+        st.code(visual_prompts.get("nano_banana_prompt", ""), language=None)
+
+        if visual_insights:
+            st.markdown("#### 看圖說故事洞察")
+            st.write("**圖片觀察**")
+            st.write(visual_insights.get("image_observation", ""))
+            st.write("**故事角度**")
+            st.write(visual_insights.get("story_angle", ""))
+            st.write("**視覺優化建議**")
+            st.write(visual_insights.get("editing_suggestion", ""))
+
+        risk_review = post.get("risk_review", [])
+        if risk_review:
+            st.warning("風險提醒\n" + "\n".join([f"- {item}" for item in risk_review]))
+
+        rewrite_notes = post.get("rewrite_notes", [])
+        if rewrite_notes:
+            st.info("成熟度修正\n" + "\n".join([f"- {item}" for item in rewrite_notes]))
+
+def flatten_campaign_pack(post):
+    primary_post = post.get("primary_post", {})
+    visual_prompts = post.get("visual_prompts", {})
+    visual_insights = post.get("visual_insights", {})
+    platform_variants = post.get("platform_variants", {})
+    strategy_snapshot = post.get("strategy_snapshot", {})
+    return {
+        "platform": strategy_snapshot.get("platform", ""),
+        "persona": strategy_snapshot.get("persona", ""),
+        "cultural_voice": strategy_snapshot.get("cultural_voice", ""),
+        "maturity_score": post.get("maturity_score", ""),
+        "readiness_level": post.get("readiness_level", ""),
+        "hook_title": primary_post.get("hook_title", ""),
+        "caption_body": primary_post.get("caption_body", ""),
+        "cta": primary_post.get("cta", ""),
+        "hashtags": " ".join(primary_post.get("hashtags", [])),
+        "short_post": platform_variants.get("short_post", ""),
+        "long_post": platform_variants.get("long_post", ""),
+        "spoken_script": platform_variants.get("spoken_script", ""),
+        "image_observation": visual_insights.get("image_observation", ""),
+        "story_angle": visual_insights.get("story_angle", ""),
+        "editing_suggestion": visual_insights.get("editing_suggestion", ""),
+        "hook_candidates": "\n".join(post.get("hook_candidates", [])),
+        "comment_starters": "\n".join(post.get("comment_starters", [])),
+        "risk_review": "\n".join(post.get("risk_review", [])),
+        "rewrite_notes": "\n".join(post.get("rewrite_notes", [])),
+        "mj_prompt": visual_prompts.get("mj_prompt", ""),
+        "nano_banana_prompt": visual_prompts.get("nano_banana_prompt", ""),
+    }
+
 # --- 3. UI 側邊欄 ---
 st.sidebar.title("🌊 設定中心")
 api_key = st.sidebar.text_input("輸入 Gemini API Key", type="password")
-domain_list = ["AI Workplace", "Corporate Strategy", "Labor Law", "Food & Cooking", "Travel & Lifestyle", "Health & Wellness", "Beauty & Skincare"]
+domain_list = get_domain_names()
 selected_domain = st.sidebar.selectbox("選擇造浪領域", domain_list)
 current_config = get_engine_config(selected_domain)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🧠 智能文案實戰工作流")
+selected_platform = st.sidebar.selectbox("平台語感", list(PLATFORM_PLAYBOOKS.keys()))
+selected_persona = st.sidebar.selectbox("TA / Persona", list(PERSONA_PLAYBOOKS.keys()))
+selected_cultural_voice = st.sidebar.selectbox("多元語言文化", list(CULTURAL_VOICE_PLAYBOOKS.keys()))
+tone_recipe = st.sidebar.text_input("語氣配方", value="70% 朋友聊天 + 20% 專業提醒 + 10% 幽默吐槽")
+groundedness = st.sidebar.slider("接地氣程度", 1, 10, 8)
+trend_sensitivity = st.sidebar.slider("趨勢敏感度", 1, 10, 8)
+brand_safety = st.sidebar.slider("品牌安全", 1, 10, 8)
+maturity_target = st.sidebar.slider("成熟度門檻", 80, 98, 90)
+
+strategy_profile = build_strategy_profile(
+    selected_platform,
+    selected_persona,
+    selected_cultural_voice,
+    groundedness,
+    trend_sensitivity,
+    brand_safety,
+    maturity_target,
+    tone_recipe,
+)
+
+with st.sidebar.expander("查看目前策略設定"):
+    st.json(strategy_profile)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎨 視覺引擎狀態")
@@ -76,7 +158,7 @@ st.sidebar.warning(f"Banana: {current_config['banana']}")
 
 # --- 4. 主畫面與分頁 ---
 st.title(f"{current_config['icon']} 百萬網紅造浪推手: 視覺進化版")
-st.caption("v3.2 - Bilingual Edition (CHT/ENG) & Vision Optimized")
+st.caption("v4.0 - Platform-native, TA-native, Trend-aware Campaign Workflow")
 
 tab_text, tab_vision = st.tabs(["📝 經典文字造浪", "👁️ 看圖說故事 (Vision)"])
 
@@ -98,37 +180,27 @@ with tab_text:
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel('models/gemini-2.5-flash')
             kb_text = load_kb_content(current_config['kb_file'])
-            
-            sys_prompt = f"""
-            Role: Mega-Influencer Wavemaker. Domain: {selected_domain}
-            Context: {kb_text}. Topic: {topic}. Count: {count}.
-            [VISUAL SPECS] MJ: {current_config['mj']}. Banana: {current_config['banana']}.
-            
-            Task: Generate {count} posts in STRICT JSON (hook_title, caption_body, hashtags, mj_prompt, nano_banana_prompt).
-            
-            **MANDATORY LANGUAGE FORMAT**:
-            For 'hook_title' and 'caption_body', you MUST provide BOTH Traditional Chinese AND English.
-            Format:
-            [Traditional Chinese Text]
-            
-            [English Text]
-            """
-            
-            with st.spinner("AI 正在撰寫雙語文案..."):
+            sys_prompt = build_campaign_prompt(
+                selected_domain,
+                topic,
+                count,
+                kb_text,
+                current_config,
+                strategy_profile,
+            )
+
+            with st.spinner("AI 正在執行平台化、TA 化、趨勢化文案工作流..."):
                 try:
                     res = model.generate_content(sys_prompt)
-                    data = json.loads(res.text.replace("```json","").replace("```","").strip())
-                    
+                    data = parse_json_response(res.text)
+
                     for i, post in enumerate(data):
-                        with st.expander(f"📄 #{i+1} {post.get('hook_title')}", expanded=True):
-                            st.write(post.get('caption_body'))
-                            st.code(post.get('mj_prompt'))
-                            st.code(post.get('nano_banana_prompt'))
-                    
-                    df = pd.DataFrame(data)
+                        render_campaign_pack(post, i)
+
+                    df = pd.DataFrame([flatten_campaign_pack(post) for post in data])
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer: df.to_excel(writer, index=False)
-                    st.download_button("📥 下載 Excel", buffer.getvalue(), f"Wavemaker_{topic}.xlsx")
+                    st.download_button("📥 下載 Campaign Pack Excel", buffer.getvalue(), f"Wavemaker_CampaignPack_{topic}.xlsx")
                 except Exception as e:
                     st.error(f"生成失敗: {e}")
 
@@ -154,48 +226,24 @@ with tab_vision:
                 
                 with st.spinner("AI 正在看圖並構思雙語內容..."):
                     try:
-                        prompt_content = [
-                            f"""
-                            Role: Social Media Visual Director. Domain: {selected_domain}
-                            Task: Analyze these {len(images)} images.
-                            Output: STRICT JSON list with {len(images)} objects.
-                            
-                            **MANDATORY LANGUAGE FORMAT**:
-                            All text fields (hook_title, caption_body, visual_analysis, editing_suggestion) MUST be Bilingual.
-                            Structure:
-                            [Traditional Chinese Content]
-                            
-                            [English Content]
-                            
-                            JSON Keys:
-                            1. hook_title
-                            2. caption_body
-                            3. visual_analysis (Explain lighting/composition)
-                            4. editing_suggestion (Professional advice)
-                            5. mj_prompt (English only)
-                            """,
-                            *images
-                        ]
-                        
+                        prompt_content = [build_vision_campaign_prompt(selected_domain, len(images), strategy_profile), *images]
+
                         res = model.generate_content(prompt_content)
-                        data = json.loads(res.text.replace("```json","").replace("```","").strip())
-                        
-                        st.success("✅ 雙語分析完成！")
+                        data = parse_json_response(res.text)
+
+                        st.success("✅ 視覺 Campaign Pack 完成！")
                         for i, post in enumerate(data):
                             col_img, col_txt = st.columns([1, 2])
                             with col_img:
                                 # 修正: 使用 use_container_width 消除警告
                                 st.image(uploaded_files[i], caption=f"圖片 #{i+1}", use_container_width=True)
                             with col_txt:
-                                st.subheader(post.get('hook_title'))
-                                st.write(post.get('caption_body'))
-                                st.info(f"🔍 **視覺分析**: \n{post.get('visual_analysis')}")
-                                st.warning(f"🎨 **修圖建議**: \n{post.get('editing_suggestion')}")
-                                
-                        df = pd.DataFrame(data)
+                                render_campaign_pack(post, i)
+
+                        df = pd.DataFrame([flatten_campaign_pack(post) for post in data])
                         buffer = io.BytesIO()
                         with pd.ExcelWriter(buffer, engine='openpyxl') as writer: df.to_excel(writer, index=False)
-                        st.download_button("📥 下載視覺報告 Excel", buffer.getvalue(), "Wavemaker_Vision_Auto.xlsx")
+                        st.download_button("📥 下載視覺 Campaign Pack Excel", buffer.getvalue(), "Wavemaker_Vision_CampaignPack.xlsx")
 
                     except Exception as e:
                         st.error(f"分析失敗: {e}")
@@ -208,9 +256,11 @@ with tab_vision:
                     prompt = [
                         f"""
                         Analyze these images for {selected_domain}.
-                        Output Requirement: Provide 3 distinct 'Vibe Directions' (e.g., Emotional, Professional, Humorous).
-                        Language: Bilingual (Traditional Chinese + English).
-                        """, 
+                        Strategy Profile: {json.dumps(strategy_profile, ensure_ascii=False)}
+                        Output Requirement: Provide 3 distinct platform-native Vibe Directions.
+                        Include persona fit, cultural voice fit, likely hook angle, and risk notes.
+                        Language: Traditional Chinese.
+                        """,
                         *images
                     ]
                     res = model.generate_content(prompt)
@@ -229,27 +279,12 @@ with tab_vision:
                     else:
                         images = [Image.open(f) for f in uploaded_files]
                         with st.spinner("AI 正在創作..."):
-                            final_prompt = [
-                                f"""
-                                Context: User uploaded images. User Direction: {user_direction}.
-                                Task: Generate {len(images)} posts. Output: STRICT JSON list.
-                                
-                                **MANDATORY LANGUAGE FORMAT**:
-                                All text fields (hook_title, caption_body, editing_suggestion) MUST be Bilingual.
-                                [Traditional Chinese Content]
-                                
-                                [English Content]
-                                """,
-                                *images
-                            ]
+                            final_prompt = [build_vision_campaign_prompt(selected_domain, len(images), strategy_profile, user_direction), *images]
                             try:
                                 res = model.generate_content(final_prompt)
-                                data = json.loads(res.text.replace("```json","").replace("```","").strip())
+                                data = parse_json_response(res.text)
                                 for i, post in enumerate(data):
-                                    st.subheader(f"貼文 #{i+1}: {post.get('hook_title')}")
-                                    st.write(post.get('caption_body'))
-                                    st.warning(f"🎨 修圖建議: \n{post.get('editing_suggestion')}")
-                                    st.markdown("---")
+                                    render_campaign_pack(post, i)
                             except Exception as e:
                                 st.error(f"生成失敗: {e}")
 
