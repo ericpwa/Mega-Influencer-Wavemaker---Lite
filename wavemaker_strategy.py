@@ -99,6 +99,28 @@ PLATFORM_PLAYBOOKS = {
 }
 
 
+IMAGE_ENGINE_PLAYBOOKS = {
+    "ChatGPT Image 2": {
+        "role": "Text-to-image prompt for ChatGPT image generation",
+        "prompt_style": "natural-language creative brief with subject, scene, mood, composition, lighting, visual hierarchy, and text placement",
+        "best_for": "social post hero visuals, campaign concepts, lifestyle scenes, editorial graphics, and branded creative directions",
+        "output_rule": "Write a self-contained prompt that can be pasted into ChatGPT. Mention desired aspect ratio, visual style, and any on-image text exactly.",
+    },
+    "Gemini 3.1 Flash Image (Nano Banana)": {
+        "role": "Text-to-image prompt optimized for Gemini / Nano Banana style text rendering",
+        "prompt_style": "clear layout instructions, readable typography, exact wording, object placement, and image-editing constraints",
+        "best_for": "graphics that need reliable text on image, product labels, social cards, poster-style layouts, and fast iteration",
+        "output_rule": "Prioritize precise text rendering, legible hierarchy, and where each text element should appear.",
+    },
+    "Midjourney": {
+        "role": "Midjourney prompt with cinematic aesthetics and model parameters",
+        "prompt_style": "dense visual keywords, medium/style descriptors, camera/lens cues, texture, color palette, composition, and parameter suffixes",
+        "best_for": "high-impact mood boards, visual hooks, stylized campaign imagery, and scroll-stopping aesthetics",
+        "output_rule": "End with Midjourney parameters such as aspect ratio, style, stylize, chaos, no-list, and version when useful.",
+    },
+}
+
+
 PERSONA_PLAYBOOKS = {
     "Gen Z Trend Hunter": {
         "taste": "fast, meme-aware, allergic to brand lectures, likes identity signals",
@@ -192,6 +214,15 @@ CAMPAIGN_PACK_SCHEMA = {
     "visual_prompts": {
         "mj_prompt": "English Midjourney prompt",
         "nano_banana_prompt": "English image text-rendering prompt",
+        "chatgpt_image_prompt": "prompt for ChatGPT Image 2 text-to-image generation",
+        "gemini_image_prompt": "prompt for Gemini 3.1 Flash Image / Nano Banana text-to-image generation",
+        "midjourney_prompt": "tailored Midjourney prompt with parameters",
+    },
+    "image_generation_brief": {
+        "creative_direction": "visual concept that turns the post copy into an image",
+        "social_format": "recommended social image format or aspect ratio",
+        "on_image_text": "short text that should appear on the image",
+        "brand_safety_notes": "visual claims, legal, medical, beauty, or platform risks to avoid",
     },
     "visual_insights": {
         "image_observation": "what the image shows and what matters for copywriting",
@@ -244,6 +275,7 @@ def build_strategy_profile(
         "maturity_target": maturity_target,
         "tone_recipe": tone_recipe,
         "maturity_rubric": MATURITY_RUBRIC,
+        "image_engine_playbooks": IMAGE_ENGINE_PLAYBOOKS,
     }
 
 
@@ -267,8 +299,8 @@ Knowledge Bank Context:
 {kb_text}
 
 Visual Specs:
-- Midjourney: {visual_config['mj']}
-- Nano Banana: {visual_config['banana']}
+- Legacy Midjourney defaults: {visual_config['mj']}
+- Legacy Nano Banana defaults: {visual_config['banana']}
 - Domain expansion note: {visual_config.get('expansion_note', 'General domain.')}
 
 Strategy Profile:
@@ -280,8 +312,9 @@ Workflow:
 3. Write copy that feels grounded, current, and human. Use concrete scenes, daily-life language, and specific benefits.
 4. Apply the selected cultural voice respectfully. It should feel native to the audience, not like a costume.
 5. Remove generic brand language, exaggerated claims, unsupported promises, and obvious AI phrasing.
-6. Produce a complete Campaign Pack that is close to publish-ready.
-7. If the maturity score is below the target, rewrite internally before final output.
+6. Turn the final copy into an image_generation_brief and 3 text-to-image prompts: ChatGPT Image 2, Gemini 3.1 Flash Image / Nano Banana, and Midjourney.
+7. Produce a complete Campaign Pack that is close to publish-ready.
+8. If the maturity score is below the target, rewrite internally before final output.
 
 Output:
 Return STRICT JSON only. Return a JSON list with exactly {count} Campaign Pack objects.
@@ -290,7 +323,7 @@ Each object must follow this schema:
 
 Language:
 - Use Traditional Chinese as the primary copy language unless the cultural voice requires light code-switching.
-- The visual prompt fields must be English.
+- The visual prompt fields should be English unless exact Traditional Chinese on-image text is required.
 - Keep platform copy natural and publishable.
 """
 
@@ -317,6 +350,7 @@ Task:
 Analyze the uploaded images, identify the strongest platform-native story angle, and create one publish-ready Campaign Pack per image.
 Respect the selected persona, platform, maturity target, and cultural voice. Avoid fake visual claims.
 For each image, include visual_insights with concrete image observations, the strongest story angle, and visual optimization advice.
+Also convert the post into image_generation_brief and 3 text-to-image prompts: ChatGPT Image 2, Gemini 3.1 Flash Image / Nano Banana, and Midjourney.
 
 Return STRICT JSON only. Return a JSON list with exactly {image_count} Campaign Pack objects.
 Each object must follow this schema:
