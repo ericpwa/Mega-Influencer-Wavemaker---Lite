@@ -200,7 +200,7 @@ with st.sidebar.expander("Midjourney", expanded=True):
     st.caption(IMAGE_ENGINE_PLAYBOOKS["Midjourney"]["prompt_style"])
 
 # --- 4. 主畫面與分頁 ---
-st.title(f"{current_config['icon']} 百萬網紅造浪推手: 視覺進化版")
+st.title("🌊 百萬網紅造浪推手: 視覺進化版")
 st.caption("v4.0 - Platform-native, TA-native, Trend-aware Campaign Workflow")
 
 tab_text, tab_vision = st.tabs(["📝 經典文字造浪", "👁️ 看圖說故事 (Vision)"])
