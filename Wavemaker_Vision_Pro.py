@@ -7,6 +7,7 @@ import os
 from PIL import Image
 from wavemaker_strategy import (
     CULTURAL_VOICE_PLAYBOOKS,
+    IMAGE_ENGINE_PLAYBOOKS,
     PERSONA_PLAYBOOKS,
     PLATFORM_PLAYBOOKS,
     build_campaign_prompt,
@@ -40,6 +41,7 @@ def render_campaign_pack(post, index=None):
     title_prefix = f"📄 #{index + 1} " if index is not None else ""
     primary_post = post.get("primary_post", {})
     visual_prompts = post.get("visual_prompts", {})
+    image_generation_brief = post.get("image_generation_brief", {})
     visual_insights = post.get("visual_insights", {})
     platform_variants = post.get("platform_variants", {})
 
@@ -68,9 +70,33 @@ def render_campaign_pack(post, index=None):
         st.write("**口播版**")
         st.write(platform_variants.get("spoken_script", ""))
 
-        st.markdown("#### 視覺提示詞")
-        st.code(visual_prompts.get("mj_prompt", ""), language=None)
-        st.code(visual_prompts.get("nano_banana_prompt", ""), language=None)
+        st.markdown("#### 文案轉圖像 Brief")
+        st.write("**創意方向**")
+        st.write(image_generation_brief.get("creative_direction", ""))
+        st.write("**社群版型**")
+        st.write(image_generation_brief.get("social_format", ""))
+        st.write("**圖上文字**")
+        st.write(image_generation_brief.get("on_image_text", ""))
+        safety_notes = image_generation_brief.get("brand_safety_notes", "")
+        if safety_notes:
+            st.caption(f"視覺安全提醒：{safety_notes}")
+
+        st.markdown("#### 多引擎文生圖提示詞")
+        prompt_tabs = st.tabs(["ChatGPT Image 2", "Gemini / Nano Banana", "Midjourney"])
+        with prompt_tabs[0]:
+            st.code(visual_prompts.get("chatgpt_image_prompt", ""), language=None)
+        with prompt_tabs[1]:
+            st.code(
+                visual_prompts.get("gemini_image_prompt")
+                or visual_prompts.get("nano_banana_prompt", ""),
+                language=None,
+            )
+        with prompt_tabs[2]:
+            st.code(
+                visual_prompts.get("midjourney_prompt")
+                or visual_prompts.get("mj_prompt", ""),
+                language=None,
+            )
 
         if visual_insights:
             st.markdown("#### 看圖說故事洞察")
@@ -92,6 +118,7 @@ def render_campaign_pack(post, index=None):
 def flatten_campaign_pack(post):
     primary_post = post.get("primary_post", {})
     visual_prompts = post.get("visual_prompts", {})
+    image_generation_brief = post.get("image_generation_brief", {})
     visual_insights = post.get("visual_insights", {})
     platform_variants = post.get("platform_variants", {})
     strategy_snapshot = post.get("strategy_snapshot", {})
@@ -108,6 +135,10 @@ def flatten_campaign_pack(post):
         "short_post": platform_variants.get("short_post", ""),
         "long_post": platform_variants.get("long_post", ""),
         "spoken_script": platform_variants.get("spoken_script", ""),
+        "creative_direction": image_generation_brief.get("creative_direction", ""),
+        "social_format": image_generation_brief.get("social_format", ""),
+        "on_image_text": image_generation_brief.get("on_image_text", ""),
+        "visual_brand_safety_notes": image_generation_brief.get("brand_safety_notes", ""),
         "image_observation": visual_insights.get("image_observation", ""),
         "story_angle": visual_insights.get("story_angle", ""),
         "editing_suggestion": visual_insights.get("editing_suggestion", ""),
@@ -115,6 +146,9 @@ def flatten_campaign_pack(post):
         "comment_starters": "\n".join(post.get("comment_starters", [])),
         "risk_review": "\n".join(post.get("risk_review", [])),
         "rewrite_notes": "\n".join(post.get("rewrite_notes", [])),
+        "chatgpt_image_prompt": visual_prompts.get("chatgpt_image_prompt", ""),
+        "gemini_image_prompt": visual_prompts.get("gemini_image_prompt", ""),
+        "midjourney_prompt": visual_prompts.get("midjourney_prompt", ""),
         "mj_prompt": visual_prompts.get("mj_prompt", ""),
         "nano_banana_prompt": visual_prompts.get("nano_banana_prompt", ""),
     }
@@ -152,9 +186,18 @@ with st.sidebar.expander("查看目前策略設定"):
     st.json(strategy_profile)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎨 視覺引擎狀態")
-st.sidebar.info(f"MJ: `{current_config['mj']}`")
-st.sidebar.warning(f"Banana: {current_config['banana']}")
+st.sidebar.subheader("🎨 多引擎圖像生成中心")
+st.sidebar.caption("文案生成後會同步產出 ChatGPT、Gemini / Nano Banana、Midjourney 可用的文生圖提示詞。")
+with st.sidebar.expander("ChatGPT Image 2", expanded=False):
+    st.write(IMAGE_ENGINE_PLAYBOOKS["ChatGPT Image 2"]["best_for"])
+    st.code(IMAGE_ENGINE_PLAYBOOKS["ChatGPT Image 2"]["prompt_style"], language=None)
+with st.sidebar.expander("Gemini / Nano Banana", expanded=False):
+    st.write(IMAGE_ENGINE_PLAYBOOKS["Gemini 3.1 Flash Image (Nano Banana)"]["best_for"])
+    st.code(IMAGE_ENGINE_PLAYBOOKS["Gemini 3.1 Flash Image (Nano Banana)"]["prompt_style"], language=None)
+with st.sidebar.expander("Midjourney", expanded=True):
+    st.write(IMAGE_ENGINE_PLAYBOOKS["Midjourney"]["best_for"])
+    st.code(current_config["mj"], language=None)
+    st.caption(IMAGE_ENGINE_PLAYBOOKS["Midjourney"]["prompt_style"])
 
 # --- 4. 主畫面與分頁 ---
 st.title(f"{current_config['icon']} 百萬網紅造浪推手: 視覺進化版")

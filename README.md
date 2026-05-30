@@ -15,7 +15,7 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
 ### 1. 📝 Text Wavemaker (經典文字造浪)
 - **7-Domain Knowledge Bank**: Built-in strategies for AI, Business, Law, Food, Travel, Health, and Beauty.
 - **Expandable Domain Playbooks**: The 7 professional domains are preserved in one workflow layer and can be extended by adding a new domain config and knowledge-bank file.
-- **Dual-Engine Prompts**: Generates **Midjourney** (Artistic) and **Gemini-Nano Banana** (Text Rendering) prompts simultaneously.
+- **Multi-Engine Image Prompts**: Converts approved copy into text-to-image prompts for **ChatGPT Image 2**, **Gemini 3.1 Flash Image / Nano Banana**, and **Midjourney**.
 - **Strategic Output**: Unlike generic AI, it embeds specific marketing hooks and "Woo Factors" based on the chosen domain.
 - **Campaign Pack Output**: Generates a publish-ready package with primary copy, short/long variants, spoken scripts, hooks, CTA, hashtags, visual prompts, comment starters, risk review, and rewrite notes.
 - **Maturity Scoring**: Uses a 100-point readiness rubric covering TA fit, platform-native language, hook strength, product clarity, human voice, action trigger, and brand safety.
@@ -33,6 +33,7 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
 - **Co-pilot Mode**: Interactive brainstorming where AI diagnoses the "Vibe" first, then collaborates with you to create the perfect post.
 - **Workflow-Aware Output**: Vision mode now follows the same platform, persona, cultural voice, and maturity-target settings as text mode.
 - **Image-to-Story Insights**: Each visual Campaign Pack can include image observation, story angle, and practical editing suggestions.
+- **Copy-to-Image Brief**: Each Campaign Pack includes a creative direction, social format, on-image text, visual safety notes, and engine-specific prompts.
 
 ## 🛠️ How to Use (如何使用)
 
@@ -47,7 +48,8 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
 5. **Ignite**:
    - **Text Mode**: Enter a topic (e.g., "Kyoto Hidden Gems") and click Generate.
    - **Vision Mode**: Upload an image and choose "Auto" or "Co-pilot".
-6. **Download**: Get your Campaign Pack in a structured **Excel report**.
+6. **Create Visuals**: Paste the engine-specific image prompt into ChatGPT, Gemini / Nano Banana, or Midjourney.
+7. **Download**: Get your Campaign Pack in a structured **Excel report**.
 
 ## 🏗️ Tech Stack (技術架構)
 
