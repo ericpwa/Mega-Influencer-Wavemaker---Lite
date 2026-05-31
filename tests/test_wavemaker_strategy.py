@@ -3,10 +3,14 @@ import json
 from wavemaker_strategy import (
     CAMPAIGN_PACK_SCHEMA,
     CULTURAL_VOICE_PLAYBOOKS,
+    IMAGE_FORMAT_PLAYBOOKS,
     IMAGE_ENGINE_PLAYBOOKS,
+    LAYOUT_PLAYBOOKS,
     MATURITY_RUBRIC,
     PERSONA_PLAYBOOKS,
     PLATFORM_PLAYBOOKS,
+    VISUAL_STRATEGY_MODES,
+    VISUAL_STYLE_PLAYBOOKS,
     build_campaign_prompt,
     build_strategy_profile,
     get_domain_config,
@@ -33,6 +37,7 @@ def test_build_strategy_profile_includes_cultural_voice_and_rubric():
     assert profile["maturity_rubric"] == MATURITY_RUBRIC
     assert profile["maturity_target"] == 90
     assert profile["image_engine_playbooks"] == IMAGE_ENGINE_PLAYBOOKS
+    assert profile["visual_strategy"]["mode"] == "AI 自動推薦"
 
 
 def test_domain_config_preserves_seven_expandable_domains():
@@ -92,7 +97,58 @@ def test_campaign_pack_schema_contains_multi_engine_image_prompts():
     assert "gemini_image_prompt" in visual_prompts
     assert "midjourney_prompt" in visual_prompts
     assert "creative_direction" in image_brief
+    assert "visual_strategy_mode" in image_brief
+    assert "visual_style" in image_brief
+    assert "layout_structure" in image_brief
     assert "on_image_text" in image_brief
+
+
+def test_visual_style_layout_and_format_playbooks_match_product_requirements():
+    assert list(VISUAL_STRATEGY_MODES.keys()) == ["AI 自動推薦", "使用者指定", "AI 推薦後可修改"]
+    assert len(VISUAL_STYLE_PLAYBOOKS) == 20
+    assert "Q版/chili人像" in VISUAL_STYLE_PLAYBOOKS
+    assert "3D盲盒公仔" in VISUAL_STYLE_PLAYBOOKS
+    assert "paper cutout 立體剪紙藝術" in VISUAL_STYLE_PLAYBOOKS
+    assert "黑版粉筆" in VISUAL_STYLE_PLAYBOOKS
+    assert "claymorphism軟萌黏土" in VISUAL_STYLE_PLAYBOOKS
+    assert "多彩曼非斯" in VISUAL_STYLE_PLAYBOOKS
+    assert "自訂" in VISUAL_STYLE_PLAYBOOKS
+    assert len(LAYOUT_PLAYBOOKS) == 12
+    assert len(IMAGE_FORMAT_PLAYBOOKS) == 6
+
+
+def test_visual_strategy_options_are_injected_into_prompt():
+    profile = build_strategy_profile(
+        platform="Instagram Feed",
+        persona="Gen Z Trend Hunter",
+        cultural_voice="台灣口語",
+        groundedness=8,
+        trend_sensitivity=9,
+        brand_safety=8,
+        maturity_target=90,
+        tone_recipe="80% 種草 + 20% 幽默",
+        visual_strategy_mode="使用者指定",
+        visual_style="3D盲盒公仔",
+        layout_structure="產品置中 + 賣點環繞",
+        image_format="4:5 IG Feed",
+        custom_visual_style="透明展示盒、可愛配件",
+        custom_layout="產品置中，三個賣點在周圍",
+    )
+
+    prompt = build_campaign_prompt(
+        domain="Beauty & Skincare",
+        topic="新品保濕霜",
+        count=1,
+        kb_text="beauty knowledge",
+        visual_config={"mj": "--ar 4:5", "banana": "Render product name on bottle."},
+        strategy_profile=profile,
+    )
+
+    assert "visual_strategy" in prompt
+    assert "使用者指定" in prompt
+    assert "3D盲盒公仔" in prompt
+    assert "產品置中 + 賣點環繞" in prompt
+    assert "4:5 IG Feed" in prompt
 
 
 def test_parse_json_response_accepts_fenced_json():

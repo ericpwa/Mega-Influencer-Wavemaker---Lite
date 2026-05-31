@@ -14,8 +14,12 @@ from image_generation import (
 from wavemaker_strategy import (
     CULTURAL_VOICE_PLAYBOOKS,
     IMAGE_ENGINE_PLAYBOOKS,
+    IMAGE_FORMAT_PLAYBOOKS,
+    LAYOUT_PLAYBOOKS,
     PERSONA_PLAYBOOKS,
     PLATFORM_PLAYBOOKS,
+    VISUAL_STRATEGY_MODES,
+    VISUAL_STYLE_PLAYBOOKS,
     build_campaign_prompt,
     build_strategy_profile,
     build_vision_campaign_prompt,
@@ -35,6 +39,10 @@ st.set_page_config(
 # --- 2. 核心邏輯：視覺工程參數庫 ---
 def get_engine_config(domain):
     return get_domain_config(domain)
+
+def get_image_format_defaults(image_format):
+    format_rule = IMAGE_FORMAT_PLAYBOOKS.get(image_format, IMAGE_FORMAT_PLAYBOOKS["自訂"])
+    return format_rule["aspect_ratio"], format_rule["openai_size"]
 
 def load_kb_content(filename):
     if filename and os.path.exists(filename):
@@ -89,8 +97,18 @@ def render_campaign_pack(
         st.markdown("#### 文案轉圖像 Brief")
         st.write("**創意方向**")
         st.write(image_generation_brief.get("creative_direction", ""))
+        st.write("**視覺策略**")
+        st.write(image_generation_brief.get("visual_strategy_mode", ""))
+        st.write("**視覺風格**")
+        st.write(image_generation_brief.get("visual_style", ""))
+        st.write("**排版結構**")
+        st.write(image_generation_brief.get("layout_structure", ""))
         st.write("**社群版型**")
         st.write(image_generation_brief.get("social_format", ""))
+        custom_notes = image_generation_brief.get("custom_visual_notes", "")
+        if custom_notes:
+            st.write("**自訂視覺指令**")
+            st.write(custom_notes)
         st.write("**圖上文字**")
         st.write(image_generation_brief.get("on_image_text", ""))
         safety_notes = image_generation_brief.get("brand_safety_notes", "")
@@ -208,7 +226,11 @@ def flatten_campaign_pack(post):
         "long_post": platform_variants.get("long_post", ""),
         "spoken_script": platform_variants.get("spoken_script", ""),
         "creative_direction": image_generation_brief.get("creative_direction", ""),
+        "visual_strategy_mode": image_generation_brief.get("visual_strategy_mode", ""),
+        "visual_style": image_generation_brief.get("visual_style", ""),
+        "layout_structure": image_generation_brief.get("layout_structure", ""),
         "social_format": image_generation_brief.get("social_format", ""),
+        "custom_visual_notes": image_generation_brief.get("custom_visual_notes", ""),
         "on_image_text": image_generation_brief.get("on_image_text", ""),
         "visual_brand_safety_notes": image_generation_brief.get("brand_safety_notes", ""),
         "image_observation": visual_insights.get("image_observation", ""),
@@ -244,6 +266,31 @@ trend_sensitivity = st.sidebar.slider("趨勢敏感度", 1, 10, 8)
 brand_safety = st.sidebar.slider("品牌安全", 1, 10, 8)
 maturity_target = st.sidebar.slider("成熟度門檻", 80, 98, 90)
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎨 視覺風格與排版")
+visual_strategy_mode = st.sidebar.selectbox("視覺策略模式", list(VISUAL_STRATEGY_MODES.keys()), index=0)
+selected_visual_style = st.sidebar.selectbox("視覺風格", list(VISUAL_STYLE_PLAYBOOKS.keys()), index=0)
+selected_layout_structure = st.sidebar.selectbox("排版結構", list(LAYOUT_PLAYBOOKS.keys()), index=0)
+selected_image_format = st.sidebar.selectbox("圖像尺寸 / 平台版型", list(IMAGE_FORMAT_PLAYBOOKS.keys()), index=0)
+
+custom_visual_style = ""
+custom_layout = ""
+custom_image_format = ""
+if selected_visual_style == "自訂" or visual_strategy_mode == "AI 推薦後可修改":
+    custom_visual_style = st.sidebar.text_area(
+        "自訂視覺風格",
+        placeholder="例如：台灣夜市霓虹、復古招牌、底片攝影感...",
+        height=80,
+    )
+if selected_layout_structure == "自訂" or visual_strategy_mode == "AI 推薦後可修改":
+    custom_layout = st.sidebar.text_area(
+        "自訂排版結構",
+        placeholder="例如：上方大標、中央產品、下方三個賣點徽章...",
+        height=80,
+    )
+if selected_image_format == "自訂":
+    custom_image_format = st.sidebar.text_input("自訂圖像尺寸 / 比例", placeholder="例如：2:3、1200x628、限時動態直式")
+
 strategy_profile = build_strategy_profile(
     selected_platform,
     selected_persona,
@@ -253,6 +300,13 @@ strategy_profile = build_strategy_profile(
     brand_safety,
     maturity_target,
     tone_recipe,
+    visual_strategy_mode=visual_strategy_mode,
+    visual_style=selected_visual_style,
+    layout_structure=selected_layout_structure,
+    image_format=selected_image_format,
+    custom_visual_style=custom_visual_style,
+    custom_layout=custom_layout,
+    custom_image_format=custom_image_format,
 )
 
 with st.sidebar.expander("查看目前策略設定"):
@@ -266,14 +320,20 @@ image_backend = st.sidebar.selectbox("實際文生圖後台", list(IMAGE_BACKEND
 st.sidebar.info(f"{IMAGE_BACKENDS[image_backend]['cost_mode']}：{IMAGE_BACKENDS[image_backend]['description']}")
 
 if image_backend == "Gemini Image (low cost)":
-    gemini_image_aspect_ratio = st.sidebar.selectbox("Gemini 圖像比例", ["1:1", "4:5", "9:16", "16:9"], index=0)
+    default_gemini_ratio, _ = get_image_format_defaults(selected_image_format)
+    gemini_ratio_options = ["1:1", "4:5", "9:16", "16:9"]
+    gemini_ratio_index = gemini_ratio_options.index(default_gemini_ratio) if default_gemini_ratio in gemini_ratio_options else 0
+    gemini_image_aspect_ratio = st.sidebar.selectbox("Gemini 圖像比例", gemini_ratio_options, index=gemini_ratio_index)
     gemini_image_size = st.sidebar.selectbox("Gemini 圖像尺寸", ["512", "1K"], index=0)
 else:
     gemini_image_aspect_ratio = "1:1"
     gemini_image_size = "512"
 
 if image_backend == "OpenAI Image (low cost)":
-    openai_image_size = st.sidebar.selectbox("OpenAI 圖像尺寸", ["1024x1024", "1024x1536", "1536x1024"], index=0)
+    _, default_openai_size = get_image_format_defaults(selected_image_format)
+    openai_size_options = ["1024x1024", "1024x1536", "1536x1024"]
+    openai_size_index = openai_size_options.index(default_openai_size) if default_openai_size in openai_size_options else 0
+    openai_image_size = st.sidebar.selectbox("OpenAI 圖像尺寸", openai_size_options, index=openai_size_index)
     openai_image_quality = st.sidebar.selectbox("OpenAI 圖像品質", ["low", "medium", "high"], index=0)
 else:
     openai_image_size = "1024x1024"

@@ -36,6 +36,7 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
 - **Image-to-Story Insights**: Each visual Campaign Pack can include image observation, story angle, and practical editing suggestions.
 - **Copy-to-Image Brief**: Each Campaign Pack includes a creative direction, social format, on-image text, visual safety notes, and engine-specific prompts.
 - **Cost Guardrail**: The app never auto-generates images in bulk. Users must click a per-post button to generate exactly one image.
+- **Visual Style & Layout Controls**: Supports AI-recommended, user-specified, and editable hybrid visual strategy modes with 20 visual styles, 12 layout structures, and 6 platform image formats.
 
 ## 🛠️ How to Use (如何使用)
 
@@ -47,12 +48,16 @@ Mega-Influencer Wavemaker is no longer only a simple copy generator. It now work
    - Pick a TA / Persona.
    - Pick a cultural voice such as *台灣口語*, *台語風味*, *客語風味*, or *晶晶體*.
    - Tune groundedness, trend sensitivity, brand safety, and maturity target.
-5. **Ignite**:
+5. **Configure Visual Direction**:
+   - Keep *AI 自動推薦* for the fastest low-effort workflow.
+   - Switch to *使用者指定* to choose style, layout, and platform format.
+   - Use *AI 推薦後可修改* when you want AI suggestions with custom overrides.
+6. **Ignite**:
    - **Text Mode**: Enter a topic (e.g., "Kyoto Hidden Gems") and click Generate.
    - **Vision Mode**: Upload an image and choose "Auto" or "Co-pilot".
-6. **Create Visuals**: Paste the engine-specific image prompt into ChatGPT, Gemini / Nano Banana, or Midjourney.
-7. **Optional Low-Cost Generation**: Switch from `Prompt only (0 cost)` to Gemini Image or OpenAI Image, then generate one image at a time.
-8. **Download**: Get your Campaign Pack in a structured **Excel report** and download generated images when available.
+7. **Create Visuals**: Paste the engine-specific image prompt into ChatGPT, Gemini / Nano Banana, or Midjourney.
+8. **Optional Low-Cost Generation**: Switch from `Prompt only (0 cost)` to Gemini Image or OpenAI Image, then generate one image at a time.
+9. **Download**: Get your Campaign Pack in a structured **Excel report** and download generated images when available.
 
 ## 🏗️ Tech Stack (技術架構)
 

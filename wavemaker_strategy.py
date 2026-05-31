@@ -121,6 +121,63 @@ IMAGE_ENGINE_PLAYBOOKS = {
 }
 
 
+VISUAL_STRATEGY_MODES = {
+    "AI 自動推薦": "AI chooses the most suitable visual style, layout, and format from the copy, platform, persona, and domain.",
+    "使用者指定": "Strictly follow the user-selected visual style, layout, and format.",
+    "AI 推薦後可修改": "AI recommends visual direction first, but user selections and custom instructions override the recommendation.",
+}
+
+
+VISUAL_STYLE_PLAYBOOKS = {
+    "寫實攝影": "realistic photography, natural lighting, believable scene, high social trust",
+    "日系生活感": "Japanese lifestyle mood, airy composition, warm everyday detail, subtle colors",
+    "韓系清透感": "Korean clean aesthetic, soft light, translucent freshness, polished minimal styling",
+    "小紅書種草風": "Xiaohongshu recommendation aesthetic, useful visual proof, trendy consumer texture",
+    "Threads 極簡梗圖風": "minimal meme-like social graphic, concise text, high shareability",
+    "高級品牌廣告風": "premium brand campaign, refined composition, confident negative space, luxury lighting",
+    "資訊圖卡風": "infographic card, clear hierarchy, scannable data, useful visual structure",
+    "電商產品主視覺": "e-commerce hero visual, product-centered, benefit callouts, conversion-focused",
+    "社群迷因風": "meme-forward social visual, punchy framing, relatable humor, fast comprehension",
+    "雜誌封面風": "magazine cover composition, editorial headline, strong focal subject, polished art direction",
+    "3D / CG 渲染": "3D CG render, dimensional lighting, clean materials, polished digital craft",
+    "插畫風": "illustrated social visual, expressive forms, friendly storytelling",
+    "手繪風": "hand-drawn texture, human warmth, sketch-like charm, approachable details",
+    "Q版/chili人像": "cute stylized chibi portrait, playful proportions, character-led emotional appeal",
+    "3D盲盒公仔": "3D collectible blind-box figurine style, toy-like material, display-box presentation",
+    "paper cutout 立體剪紙藝術": "layered paper cutout art, tactile shadows, dimensional craft, paper texture",
+    "黑版粉筆": "blackboard chalk style, hand-lettered marks, educational warmth, chalk texture",
+    "claymorphism軟萌黏土": "soft claymorphism, rounded tactile shapes, pastel material, cute handmade feel",
+    "多彩曼非斯": "colorful Memphis design, geometric forms, playful pattern, energetic composition",
+    "自訂": "Use the user's custom visual style instruction.",
+}
+
+
+LAYOUT_PLAYBOOKS = {
+    "單一主視覺 + 短標": "one hero image with a short headline and minimal supporting text",
+    "大標題置中": "centered bold headline with strong visual balance",
+    "左圖右文": "image on the left, text block on the right, clear split composition",
+    "上圖下文": "image-led top area with supporting copy below",
+    "產品置中 + 賣點環繞": "centered product with benefit callouts surrounding it",
+    "Before / After": "before-after comparison layout with clear contrast",
+    "三點式重點卡": "three key points in a structured card layout",
+    "九宮格懶人包": "nine-grid explainer or recommendation layout",
+    "封面標題 + 小副標": "cover-style headline with compact subheadline",
+    "Quote 卡片": "quote-led layout with strong typography and minimal decoration",
+    "留白高級感": "premium whitespace composition with restrained text placement",
+    "自訂": "Use the user's custom layout instruction.",
+}
+
+
+IMAGE_FORMAT_PLAYBOOKS = {
+    "1:1 IG / Threads": {"aspect_ratio": "1:1", "openai_size": "1024x1024", "usage": "square feed posts and general social sharing"},
+    "4:5 IG Feed": {"aspect_ratio": "4:5", "openai_size": "1024x1536", "usage": "Instagram feed and portrait social cards"},
+    "9:16 Reels / TikTok / Shorts": {"aspect_ratio": "9:16", "openai_size": "1024x1536", "usage": "vertical short video covers and story format"},
+    "16:9 YouTube / Blog": {"aspect_ratio": "16:9", "openai_size": "1536x1024", "usage": "YouTube thumbnails, blog headers, and landscape banners"},
+    "3:2 LinkedIn / Presentation": {"aspect_ratio": "3:2", "openai_size": "1536x1024", "usage": "LinkedIn posts, presentation visuals, and business content"},
+    "自訂": {"aspect_ratio": "custom", "openai_size": "1024x1024", "usage": "Use the user's custom format instruction."},
+}
+
+
 PERSONA_PLAYBOOKS = {
     "Gen Z Trend Hunter": {
         "taste": "fast, meme-aware, allergic to brand lectures, likes identity signals",
@@ -220,7 +277,11 @@ CAMPAIGN_PACK_SCHEMA = {
     },
     "image_generation_brief": {
         "creative_direction": "visual concept that turns the post copy into an image",
+        "visual_strategy_mode": "AI 自動推薦 / 使用者指定 / AI 推薦後可修改",
+        "visual_style": "selected or AI-recommended visual style",
+        "layout_structure": "selected or AI-recommended layout structure",
         "social_format": "recommended social image format or aspect ratio",
+        "custom_visual_notes": "user custom visual style/layout/format instructions when provided",
         "on_image_text": "short text that should appear on the image",
         "brand_safety_notes": "visual claims, legal, medical, beauty, or platform risks to avoid",
     },
@@ -261,7 +322,17 @@ def build_strategy_profile(
     brand_safety,
     maturity_target,
     tone_recipe,
+    visual_strategy_mode="AI 自動推薦",
+    visual_style="自訂",
+    layout_structure="自訂",
+    image_format="自訂",
+    custom_visual_style="",
+    custom_layout="",
+    custom_image_format="",
 ):
+    visual_style_playbook = VISUAL_STYLE_PLAYBOOKS.get(visual_style, VISUAL_STYLE_PLAYBOOKS["自訂"])
+    layout_playbook = LAYOUT_PLAYBOOKS.get(layout_structure, LAYOUT_PLAYBOOKS["自訂"])
+    format_playbook = IMAGE_FORMAT_PLAYBOOKS.get(image_format, IMAGE_FORMAT_PLAYBOOKS["自訂"])
     return {
         "platform": platform,
         "platform_playbook": PLATFORM_PLAYBOOKS[platform],
@@ -276,6 +347,19 @@ def build_strategy_profile(
         "tone_recipe": tone_recipe,
         "maturity_rubric": MATURITY_RUBRIC,
         "image_engine_playbooks": IMAGE_ENGINE_PLAYBOOKS,
+        "visual_strategy": {
+            "mode": visual_strategy_mode,
+            "mode_rule": VISUAL_STRATEGY_MODES[visual_strategy_mode],
+            "style": visual_style,
+            "style_rule": visual_style_playbook,
+            "layout": layout_structure,
+            "layout_rule": layout_playbook,
+            "format": image_format,
+            "format_rule": format_playbook,
+            "custom_visual_style": custom_visual_style.strip(),
+            "custom_layout": custom_layout.strip(),
+            "custom_image_format": custom_image_format.strip(),
+        },
     }
 
 
@@ -312,9 +396,14 @@ Workflow:
 3. Write copy that feels grounded, current, and human. Use concrete scenes, daily-life language, and specific benefits.
 4. Apply the selected cultural voice respectfully. It should feel native to the audience, not like a costume.
 5. Remove generic brand language, exaggerated claims, unsupported promises, and obvious AI phrasing.
-6. Turn the final copy into an image_generation_brief and 3 text-to-image prompts: ChatGPT Image 2, Gemini 3.1 Flash Image / Nano Banana, and Midjourney.
-7. Produce a complete Campaign Pack that is close to publish-ready.
-8. If the maturity score is below the target, rewrite internally before final output.
+6. Apply the visual_strategy exactly:
+   - If mode is AI 自動推薦, recommend the best visual style, layout, and format from the playbooks.
+   - If mode is 使用者指定, strictly follow the selected style, layout, format, and custom notes.
+   - If mode is AI 推薦後可修改, explain the recommendation in image_generation_brief but honor selected/custom overrides.
+7. Turn the final copy into an image_generation_brief and 3 text-to-image prompts: ChatGPT Image 2, Gemini 3.1 Flash Image / Nano Banana, and Midjourney.
+8. Each visual prompt must explicitly include visual style, layout structure, image format/aspect ratio, on-image text placement, and text safety.
+9. Produce a complete Campaign Pack that is close to publish-ready.
+10. If the maturity score is below the target, rewrite internally before final output.
 
 Output:
 Return STRICT JSON only. Return a JSON list with exactly {count} Campaign Pack objects.
@@ -350,6 +439,7 @@ Task:
 Analyze the uploaded images, identify the strongest platform-native story angle, and create one publish-ready Campaign Pack per image.
 Respect the selected persona, platform, maturity target, and cultural voice. Avoid fake visual claims.
 For each image, include visual_insights with concrete image observations, the strongest story angle, and visual optimization advice.
+Apply the visual_strategy in the Strategy Profile when choosing visual style, layout, image format, and on-image text placement.
 Also convert the post into image_generation_brief and 3 text-to-image prompts: ChatGPT Image 2, Gemini 3.1 Flash Image / Nano Banana, and Midjourney.
 
 Return STRICT JSON only. Return a JSON list with exactly {image_count} Campaign Pack objects.
