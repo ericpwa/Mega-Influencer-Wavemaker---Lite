@@ -11,22 +11,33 @@ from image_generation import (
     generate_gemini_image,
     generate_openai_image,
 )
-from wavemaker_strategy import (
-    CULTURAL_VOICE_PLAYBOOKS,
-    IMAGE_ENGINE_PLAYBOOKS,
-    IMAGE_FORMAT_PLAYBOOKS,
-    LAYOUT_PLAYBOOKS,
-    PERSONA_PLAYBOOKS,
-    PLATFORM_PLAYBOOKS,
-    VISUAL_STRATEGY_MODES,
-    VISUAL_STYLE_PLAYBOOKS,
-    build_campaign_prompt,
-    build_strategy_profile,
-    build_vision_campaign_prompt,
-    get_domain_config,
-    get_domain_names,
-    parse_json_response,
-)
+import wavemaker_strategy as strategy
+
+CULTURAL_VOICE_PLAYBOOKS = getattr(strategy, "CULTURAL_VOICE_PLAYBOOKS", {"標準繁中": {}})
+IMAGE_ENGINE_PLAYBOOKS = getattr(strategy, "IMAGE_ENGINE_PLAYBOOKS", {
+    "ChatGPT Image 2": {"best_for": "social visuals", "prompt_style": "creative image prompt"},
+    "Gemini 3.1 Flash Image (Nano Banana)": {"best_for": "text-rendering graphics", "prompt_style": "clear image layout prompt"},
+    "Midjourney": {"best_for": "high-impact stylized visuals", "prompt_style": "visual keywords and parameters"},
+})
+PERSONA_PLAYBOOKS = getattr(strategy, "PERSONA_PLAYBOOKS", {"Gen Z Trend Hunter": {}})
+PLATFORM_PLAYBOOKS = getattr(strategy, "PLATFORM_PLAYBOOKS", {"Threads": {}})
+build_campaign_prompt = strategy.build_campaign_prompt
+build_vision_campaign_prompt = strategy.build_vision_campaign_prompt
+get_domain_config = strategy.get_domain_config
+get_domain_names = strategy.get_domain_names
+parse_json_response = strategy.parse_json_response
+
+VISUAL_STRATEGY_MODES = getattr(strategy, "VISUAL_STRATEGY_MODES", {
+    "AI 自動推薦": "AI chooses the most suitable visual style, layout, and format.",
+    "使用者指定": "Strictly follow the selected visual style, layout, and format.",
+    "AI 推薦後可修改": "AI recommendations with user overrides.",
+})
+VISUAL_STYLE_PLAYBOOKS = getattr(strategy, "VISUAL_STYLE_PLAYBOOKS", {"自訂": "Use custom visual style."})
+LAYOUT_PLAYBOOKS = getattr(strategy, "LAYOUT_PLAYBOOKS", {"自訂": "Use custom layout."})
+IMAGE_FORMAT_PLAYBOOKS = getattr(strategy, "IMAGE_FORMAT_PLAYBOOKS", {
+    "1:1 IG / Threads": {"aspect_ratio": "1:1", "openai_size": "1024x1024", "usage": "square social posts"},
+    "自訂": {"aspect_ratio": "custom", "openai_size": "1024x1024", "usage": "custom format"},
+})
 
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(
@@ -43,6 +54,63 @@ def get_engine_config(domain):
 def get_image_format_defaults(image_format):
     format_rule = IMAGE_FORMAT_PLAYBOOKS.get(image_format, IMAGE_FORMAT_PLAYBOOKS["自訂"])
     return format_rule["aspect_ratio"], format_rule["openai_size"]
+
+def build_strategy_profile_compat(
+    platform,
+    persona,
+    cultural_voice,
+    groundedness,
+    trend_sensitivity,
+    brand_safety,
+    maturity_target,
+    tone_recipe,
+    visual_strategy_mode,
+    visual_style,
+    layout_structure,
+    image_format,
+    custom_visual_style,
+    custom_layout,
+    custom_image_format,
+):
+    try:
+        return strategy.build_strategy_profile(
+            platform,
+            persona,
+            cultural_voice,
+            groundedness,
+            trend_sensitivity,
+            brand_safety,
+            maturity_target,
+            tone_recipe,
+            visual_strategy_mode=visual_strategy_mode,
+            visual_style=visual_style,
+            layout_structure=layout_structure,
+            image_format=image_format,
+            custom_visual_style=custom_visual_style,
+            custom_layout=custom_layout,
+            custom_image_format=custom_image_format,
+        )
+    except TypeError:
+        profile = strategy.build_strategy_profile(
+            platform,
+            persona,
+            cultural_voice,
+            groundedness,
+            trend_sensitivity,
+            brand_safety,
+            maturity_target,
+            tone_recipe,
+        )
+        profile["visual_strategy"] = {
+            "mode": visual_strategy_mode,
+            "style": visual_style,
+            "layout": layout_structure,
+            "format": image_format,
+            "custom_visual_style": custom_visual_style.strip(),
+            "custom_layout": custom_layout.strip(),
+            "custom_image_format": custom_image_format.strip(),
+        }
+        return profile
 
 def load_kb_content(filename):
     if filename and os.path.exists(filename):
@@ -291,7 +359,7 @@ if selected_layout_structure == "自訂" or visual_strategy_mode == "AI 推薦�
 if selected_image_format == "自訂":
     custom_image_format = st.sidebar.text_input("自訂圖像尺寸 / 比例", placeholder="例如：2:3、1200x628、限時動態直式")
 
-strategy_profile = build_strategy_profile(
+strategy_profile = build_strategy_profile_compat(
     selected_platform,
     selected_persona,
     selected_cultural_voice,
