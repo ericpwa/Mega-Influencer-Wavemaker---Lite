@@ -3,6 +3,7 @@ import json
 from wavemaker_strategy import (
     CAMPAIGN_PACK_SCHEMA,
     CULTURAL_VOICE_PLAYBOOKS,
+    DEFAULT_IMAGE_FORMAT_BY_PLATFORM,
     IMAGE_FORMAT_PLAYBOOKS,
     IMAGE_ENGINE_PLAYBOOKS,
     LAYOUT_PLAYBOOKS,
@@ -16,6 +17,8 @@ from wavemaker_strategy import (
     get_domain_config,
     get_domain_names,
     parse_json_response,
+    recommend_image_format_for_platform,
+    recommend_visual_style_and_layout,
 )
 
 
@@ -109,12 +112,56 @@ def test_visual_style_layout_and_format_playbooks_match_product_requirements():
     assert "Q版/chili人像" in VISUAL_STYLE_PLAYBOOKS
     assert "3D盲盒公仔" in VISUAL_STYLE_PLAYBOOKS
     assert "paper cutout 立體剪紙藝術" in VISUAL_STYLE_PLAYBOOKS
-    assert "黑版粉筆" in VISUAL_STYLE_PLAYBOOKS
+    assert "黑板粉筆板書" in VISUAL_STYLE_PLAYBOOKS
     assert "claymorphism軟萌黏土" in VISUAL_STYLE_PLAYBOOKS
     assert "多彩曼非斯" in VISUAL_STYLE_PLAYBOOKS
     assert "自訂" in VISUAL_STYLE_PLAYBOOKS
     assert len(LAYOUT_PLAYBOOKS) == 12
     assert len(IMAGE_FORMAT_PLAYBOOKS) == 6
+
+
+def test_platform_image_format_recommendations_keep_manual_options_available():
+    assert DEFAULT_IMAGE_FORMAT_BY_PLATFORM["Threads"] == "1:1 IG / Threads"
+    assert DEFAULT_IMAGE_FORMAT_BY_PLATFORM["Instagram Feed"] == "4:5 IG Feed"
+    assert DEFAULT_IMAGE_FORMAT_BY_PLATFORM["Instagram Reels"] == "9:16 Reels / TikTok / Shorts"
+    assert DEFAULT_IMAGE_FORMAT_BY_PLATFORM["TikTok"] == "9:16 Reels / TikTok / Shorts"
+    assert DEFAULT_IMAGE_FORMAT_BY_PLATFORM["LinkedIn"] == "3:2 LinkedIn / Presentation"
+    assert recommend_image_format_for_platform("Unknown Platform") == "1:1 IG / Threads"
+    assert set(DEFAULT_IMAGE_FORMAT_BY_PLATFORM.values()).issubset(IMAGE_FORMAT_PLAYBOOKS.keys())
+
+
+def test_visual_style_and_layout_recommendations_follow_workflow_context():
+    tiktok_recommendation = recommend_visual_style_and_layout(
+        platform="TikTok",
+        persona="Gen Z Trend Hunter",
+        cultural_voice="台灣口語",
+        domain="Food & Cooking",
+    )
+    linkedin_recommendation = recommend_visual_style_and_layout(
+        platform="LinkedIn",
+        persona="Knowledge Worker",
+        cultural_voice="標準繁中",
+        domain="Corporate Strategy",
+    )
+    beauty_recommendation = recommend_visual_style_and_layout(
+        platform="Xiaohongshu",
+        persona="Beauty Skincare Explorer",
+        cultural_voice="晶晶體",
+        domain="Beauty & Skincare",
+    )
+
+    assert tiktok_recommendation == {
+        "visual_style": "社群迷因風",
+        "layout_structure": "大標題置中",
+    }
+    assert linkedin_recommendation == {
+        "visual_style": "資訊圖卡風",
+        "layout_structure": "左圖右文",
+    }
+    assert beauty_recommendation == {
+        "visual_style": "小紅書種草風",
+        "layout_structure": "九宮格懶人包",
+    }
 
 
 def test_visual_strategy_options_are_injected_into_prompt():

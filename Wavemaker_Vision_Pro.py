@@ -32,12 +32,72 @@ VISUAL_STRATEGY_MODES = getattr(strategy, "VISUAL_STRATEGY_MODES", {
     "使用者指定": "Strictly follow the selected visual style, layout, and format.",
     "AI 推薦後可修改": "AI recommendations with user overrides.",
 })
-VISUAL_STYLE_PLAYBOOKS = getattr(strategy, "VISUAL_STYLE_PLAYBOOKS", {"自訂": "Use custom visual style."})
-LAYOUT_PLAYBOOKS = getattr(strategy, "LAYOUT_PLAYBOOKS", {"自訂": "Use custom layout."})
+VISUAL_STYLE_PLAYBOOKS = getattr(strategy, "VISUAL_STYLE_PLAYBOOKS", {
+    "寫實攝影": "realistic photography",
+    "日系生活感": "Japanese lifestyle mood",
+    "韓系清透感": "Korean clean aesthetic",
+    "小紅書種草風": "Xiaohongshu recommendation aesthetic",
+    "Threads 極簡梗圖風": "minimal meme-like social graphic",
+    "高級品牌廣告風": "premium brand campaign",
+    "資訊圖卡風": "infographic card",
+    "電商產品主視覺": "e-commerce hero visual",
+    "社群迷因風": "meme-forward social visual",
+    "雜誌封面風": "magazine cover composition",
+    "3D / CG 渲染": "3D CG render",
+    "插畫風": "illustrated social visual",
+    "手繪風": "hand-drawn texture",
+    "Q版/chili人像": "cute stylized chibi portrait",
+    "3D盲盒公仔": "3D collectible blind-box figurine style",
+    "paper cutout 立體剪紙藝術": "layered paper cutout art",
+    "黑板粉筆板書": "blackboard chalk note style",
+    "claymorphism軟萌黏土": "soft claymorphism",
+    "多彩曼非斯": "colorful Memphis design",
+    "自訂": "Use custom visual style.",
+})
+LAYOUT_PLAYBOOKS = getattr(strategy, "LAYOUT_PLAYBOOKS", {
+    "單一主視覺 + 短標": "one hero image with a short headline",
+    "大標題置中": "centered bold headline",
+    "左圖右文": "image left, text right",
+    "上圖下文": "image top, text below",
+    "產品置中 + 賣點環繞": "centered product with surrounding callouts",
+    "Before / After": "before-after comparison layout",
+    "三點式重點卡": "three key points card",
+    "九宮格懶人包": "nine-grid explainer",
+    "封面標題 + 小副標": "cover title with compact subtitle",
+    "Quote 卡片": "quote-led layout",
+    "留白高級感": "premium whitespace composition",
+    "自訂": "Use custom layout.",
+})
 IMAGE_FORMAT_PLAYBOOKS = getattr(strategy, "IMAGE_FORMAT_PLAYBOOKS", {
     "1:1 IG / Threads": {"aspect_ratio": "1:1", "openai_size": "1024x1024", "usage": "square social posts"},
+    "4:5 IG Feed": {"aspect_ratio": "4:5", "openai_size": "1024x1536", "usage": "Instagram feed and portrait social cards"},
+    "9:16 Reels / TikTok / Shorts": {"aspect_ratio": "9:16", "openai_size": "1024x1536", "usage": "vertical short video covers and story format"},
+    "16:9 YouTube / Blog": {"aspect_ratio": "16:9", "openai_size": "1536x1024", "usage": "YouTube thumbnails, blog headers, and landscape banners"},
+    "3:2 LinkedIn / Presentation": {"aspect_ratio": "3:2", "openai_size": "1536x1024", "usage": "LinkedIn posts, presentation visuals, and business content"},
     "自訂": {"aspect_ratio": "custom", "openai_size": "1024x1024", "usage": "custom format"},
 })
+recommend_image_format_for_platform = getattr(
+    strategy,
+    "recommend_image_format_for_platform",
+    lambda platform: {
+        "Threads": "1:1 IG / Threads",
+        "Instagram Reels": "9:16 Reels / TikTok / Shorts",
+        "Instagram Feed": "4:5 IG Feed",
+        "TikTok": "9:16 Reels / TikTok / Shorts",
+        "Dcard": "1:1 IG / Threads",
+        "Xiaohongshu": "4:5 IG Feed",
+        "Facebook": "1:1 IG / Threads",
+        "LinkedIn": "3:2 LinkedIn / Presentation",
+    }.get(platform, "1:1 IG / Threads"),
+)
+recommend_visual_style_and_layout = getattr(
+    strategy,
+    "recommend_visual_style_and_layout",
+    lambda platform, persona, cultural_voice, domain: {
+        "visual_style": "寫實攝影",
+        "layout_structure": "單一主視覺 + 短標",
+    },
+)
 
 # --- 1. 頁面基礎設定 ---
 st.set_page_config(
@@ -119,9 +179,96 @@ def load_kb_content(filename):
         except: return "(Error reading KB)"
     return "(General Mode)"
 
+def get_active_visual_strategy(strategy_profile):
+    visual_strategy = strategy_profile.get("visual_strategy", {})
+    format_rule = visual_strategy.get("format_rule", {})
+    format_label = visual_strategy.get("format", "")
+    aspect_ratio = format_rule.get("aspect_ratio", "")
+    social_format = format_label
+    if aspect_ratio and aspect_ratio != "custom" and aspect_ratio not in social_format:
+        social_format = f"{format_label} ({aspect_ratio})"
+
+    custom_notes = []
+    if visual_strategy.get("custom_visual_style"):
+        custom_notes.append(f"自訂視覺風格：{visual_strategy['custom_visual_style']}")
+    if visual_strategy.get("custom_layout"):
+        custom_notes.append(f"自訂排版結構：{visual_strategy['custom_layout']}")
+    if visual_strategy.get("custom_image_format"):
+        custom_notes.append(f"自訂圖像尺寸 / 平台版型：{visual_strategy['custom_image_format']}")
+
+    return {
+        "mode": visual_strategy.get("mode", ""),
+        "visual_style": visual_strategy.get("style", ""),
+        "layout_structure": visual_strategy.get("layout", ""),
+        "social_format": social_format,
+        "custom_visual_notes": "\n".join(custom_notes),
+    }
+
+def enforce_active_visual_prompt(prompt, active_visual_strategy, on_image_text=""):
+    prompt = (prompt or "").strip()
+    visual_style = active_visual_strategy["visual_style"]
+    layout_structure = active_visual_strategy["layout_structure"]
+    social_format = active_visual_strategy["social_format"]
+    replacements = {
+        "visual style: 自訂": f"visual style: {visual_style}",
+        "Visual style: 自訂": f"Visual style: {visual_style}",
+        "layout: 自訂": f"layout: {layout_structure}",
+        "Layout: 自訂": f"Layout: {layout_structure}",
+        "自訂視覺風格": visual_style,
+        "自訂排版結構": layout_structure,
+    }
+    for old, new in replacements.items():
+        prompt = prompt.replace(old, new)
+
+    prefix_parts = [
+        f"Visual style: {visual_style}",
+        f"Layout structure: {layout_structure}",
+        f"Image format: {social_format}",
+    ]
+    if on_image_text:
+        prefix_parts.append(f"On-image text: {on_image_text}")
+    prefix = ". ".join(prefix_parts) + ". "
+
+    if prompt.startswith("Visual style:"):
+        return prompt
+    return prefix + prompt if prompt else prefix.strip()
+
+def apply_active_visual_strategy(post, strategy_profile):
+    active_visual_strategy = get_active_visual_strategy(strategy_profile)
+    normalized_post = dict(post)
+    image_generation_brief = dict(post.get("image_generation_brief", {}))
+    visual_prompts = dict(post.get("visual_prompts", {}))
+
+    image_generation_brief["visual_strategy_mode"] = active_visual_strategy["mode"]
+    image_generation_brief["visual_style"] = active_visual_strategy["visual_style"]
+    image_generation_brief["layout_structure"] = active_visual_strategy["layout_structure"]
+    image_generation_brief["social_format"] = active_visual_strategy["social_format"]
+    image_generation_brief["custom_visual_notes"] = active_visual_strategy["custom_visual_notes"]
+
+    on_image_text = image_generation_brief.get("on_image_text", "")
+    prompt_keys = [
+        "chatgpt_image_prompt",
+        "gemini_image_prompt",
+        "nano_banana_prompt",
+        "midjourney_prompt",
+        "mj_prompt",
+    ]
+    for key in prompt_keys:
+        if key in visual_prompts:
+            visual_prompts[key] = enforce_active_visual_prompt(
+                visual_prompts[key],
+                active_visual_strategy,
+                on_image_text,
+            )
+
+    normalized_post["image_generation_brief"] = image_generation_brief
+    normalized_post["visual_prompts"] = visual_prompts
+    return normalized_post
+
 def render_campaign_pack(
     post,
     index=None,
+    strategy_profile=None,
     image_backend="Prompt only (0 cost)",
     gemini_image_api_key="",
     openai_api_key="",
@@ -130,6 +277,9 @@ def render_campaign_pack(
     openai_image_size="1024x1024",
     openai_image_quality="low",
 ):
+    if strategy_profile:
+        post = apply_active_visual_strategy(post, strategy_profile)
+
     title_prefix = f"📄 #{index + 1} " if index is not None else ""
     primary_post = post.get("primary_post", {})
     visual_prompts = post.get("visual_prompts", {})
@@ -184,20 +334,49 @@ def render_campaign_pack(
             st.caption(f"視覺安全提醒：{safety_notes}")
 
         st.markdown("#### 多引擎文生圖提示詞")
+        prompt_identity = "_".join(
+            [
+                str(index if index is not None else "single"),
+                image_generation_brief.get("visual_strategy_mode", ""),
+                image_generation_brief.get("visual_style", ""),
+                image_generation_brief.get("layout_structure", ""),
+                image_generation_brief.get("social_format", ""),
+                visual_prompts.get("chatgpt_image_prompt", "")[:120],
+                visual_prompts.get("gemini_image_prompt", "")[:120],
+                visual_prompts.get("midjourney_prompt", "")[:120],
+            ]
+        )
+        prompt_key_suffix = str(abs(hash(prompt_identity)))
+        chatgpt_prompt = visual_prompts.get("chatgpt_image_prompt", "")
+        gemini_prompt = (
+            visual_prompts.get("gemini_image_prompt")
+            or visual_prompts.get("nano_banana_prompt", "")
+        )
+        midjourney_prompt = (
+            visual_prompts.get("midjourney_prompt")
+            or visual_prompts.get("mj_prompt", "")
+        )
         prompt_tabs = st.tabs(["ChatGPT Image 2", "Gemini / Nano Banana", "Midjourney"])
         with prompt_tabs[0]:
-            st.code(visual_prompts.get("chatgpt_image_prompt", ""), language=None)
+            chatgpt_prompt = st.text_area(
+                "可編輯 ChatGPT Image 2 提示詞",
+                value=chatgpt_prompt,
+                height=140,
+                key=f"chatgpt_prompt_{prompt_key_suffix}",
+            )
         with prompt_tabs[1]:
-            st.code(
-                visual_prompts.get("gemini_image_prompt")
-                or visual_prompts.get("nano_banana_prompt", ""),
-                language=None,
+            gemini_prompt = st.text_area(
+                "可編輯 Gemini / Nano Banana 提示詞",
+                value=gemini_prompt,
+                height=140,
+                key=f"gemini_prompt_{prompt_key_suffix}",
             )
         with prompt_tabs[2]:
-            st.code(
-                visual_prompts.get("midjourney_prompt")
-                or visual_prompts.get("mj_prompt", ""),
-                language=None,
+            midjourney_prompt = st.text_area(
+                "可編輯 Midjourney 提示詞",
+                value=midjourney_prompt,
+                height=140,
+                key=f"midjourney_prompt_{prompt_key_suffix}",
             )
 
         st.markdown("#### 實際文生圖")
@@ -205,12 +384,9 @@ def render_campaign_pack(
             st.caption("目前為 0 成本模式：不呼叫任何生圖 API，只輸出可複製的提示詞。")
         else:
             if image_backend == "Gemini Image (low cost)":
-                generation_prompt = (
-                    visual_prompts.get("gemini_image_prompt")
-                    or visual_prompts.get("nano_banana_prompt", "")
-                )
+                generation_prompt = gemini_prompt
             else:
-                generation_prompt = visual_prompts.get("chatgpt_image_prompt", "")
+                generation_prompt = chatgpt_prompt
 
             if not generation_prompt:
                 st.warning("這篇 Campaign Pack 沒有可用的文生圖提示詞。")
@@ -337,27 +513,86 @@ maturity_target = st.sidebar.slider("成熟度門檻", 80, 98, 90)
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎨 視覺風格與排版")
 visual_strategy_mode = st.sidebar.selectbox("視覺策略模式", list(VISUAL_STRATEGY_MODES.keys()), index=0)
-selected_visual_style = st.sidebar.selectbox("視覺風格", list(VISUAL_STYLE_PLAYBOOKS.keys()), index=0)
-selected_layout_structure = st.sidebar.selectbox("排版結構", list(LAYOUT_PLAYBOOKS.keys()), index=0)
-selected_image_format = st.sidebar.selectbox("圖像尺寸 / 平台版型", list(IMAGE_FORMAT_PLAYBOOKS.keys()), index=0)
+visual_style_options = list(VISUAL_STYLE_PLAYBOOKS.keys())
+layout_structure_options = list(LAYOUT_PLAYBOOKS.keys())
+recommendation_context = (
+    visual_strategy_mode,
+    selected_domain,
+    selected_platform,
+    selected_persona,
+    selected_cultural_voice,
+)
+recommended_visual_direction = recommend_visual_style_and_layout(
+    selected_platform,
+    selected_persona,
+    selected_cultural_voice,
+    selected_domain,
+)
+visual_recommendation_state_version = "visual-recommendation-v2"
+recommended_visual_style = recommended_visual_direction["visual_style"]
+recommended_layout_structure = recommended_visual_direction["layout_structure"]
+if recommended_visual_style not in visual_style_options:
+    recommended_visual_style = visual_style_options[0]
+if recommended_layout_structure not in layout_structure_options:
+    recommended_layout_structure = layout_structure_options[0]
+should_apply_visual_recommendation = visual_strategy_mode == "AI 自動推薦" or (
+    visual_strategy_mode == "AI 推薦後可修改"
+    and (
+        "selected_visual_style" not in st.session_state
+        or st.session_state["selected_visual_style"] not in visual_style_options
+        or "selected_layout_structure" not in st.session_state
+        or st.session_state["selected_layout_structure"] not in layout_structure_options
+        or st.session_state.get("_visual_recommendation_context") != recommendation_context
+        or st.session_state.get("_visual_recommendation_state_version") != visual_recommendation_state_version
+    )
+)
+if should_apply_visual_recommendation:
+    st.session_state["selected_visual_style"] = recommended_visual_style
+    st.session_state["selected_layout_structure"] = recommended_layout_structure
+st.session_state["_visual_recommendation_context"] = recommendation_context
+st.session_state["_visual_recommendation_state_version"] = visual_recommendation_state_version
+selected_visual_style = st.sidebar.selectbox(
+    "視覺風格",
+    visual_style_options,
+    key="selected_visual_style",
+    disabled=visual_strategy_mode == "AI 自動推薦",
+)
+selected_layout_structure = st.sidebar.selectbox(
+    "排版結構",
+    layout_structure_options,
+    key="selected_layout_structure",
+    disabled=visual_strategy_mode == "AI 自動推薦",
+)
+image_format_options = list(IMAGE_FORMAT_PLAYBOOKS.keys())
+recommended_image_format = recommend_image_format_for_platform(selected_platform)
+if recommended_image_format not in image_format_options:
+    recommended_image_format = image_format_options[0]
+if (
+    "selected_image_format" not in st.session_state
+    or st.session_state["selected_image_format"] not in image_format_options
+    or st.session_state.get("_image_format_platform") != selected_platform
+):
+    st.session_state["selected_image_format"] = recommended_image_format
+st.session_state["_image_format_platform"] = selected_platform
+selected_image_format = st.sidebar.selectbox("圖像尺寸 / 平台版型", image_format_options, key="selected_image_format")
 
 custom_visual_style = ""
 custom_layout = ""
 custom_image_format = ""
-if selected_visual_style == "自訂" or visual_strategy_mode == "AI 推薦後可修改":
+if selected_visual_style == "自訂":
     custom_visual_style = st.sidebar.text_area(
         "自訂視覺風格",
         placeholder="例如：台灣夜市霓虹、復古招牌、底片攝影感...",
         height=80,
     )
-if selected_layout_structure == "自訂" or visual_strategy_mode == "AI 推薦後可修改":
+if selected_layout_structure == "自訂":
     custom_layout = st.sidebar.text_area(
         "自訂排版結構",
         placeholder="例如：上方大標、中央產品、下方三個賣點徽章...",
         height=80,
     )
 if selected_image_format == "自訂":
-    custom_image_format = st.sidebar.text_input("自訂圖像尺寸 / 比例", placeholder="例如：2:3、1200x628、限時動態直式")
+    custom_image_format = st.sidebar.text_input("自訂圖像尺寸 / 平台版型", placeholder="例如：2:3、1200x628、限時動態直式")
 
 strategy_profile = build_strategy_profile_compat(
     selected_platform,
@@ -463,6 +698,7 @@ with tab_text:
                         render_campaign_pack(
                             post,
                             i,
+                            strategy_profile=strategy_profile,
                             image_backend=image_backend,
                             gemini_image_api_key=api_key,
                             openai_api_key=openai_api_key,
@@ -472,7 +708,8 @@ with tab_text:
                             openai_image_quality=openai_image_quality,
                         )
 
-                    df = pd.DataFrame([flatten_campaign_pack(post) for post in data])
+                    normalized_data = [apply_active_visual_strategy(post, strategy_profile) for post in data]
+                    df = pd.DataFrame([flatten_campaign_pack(post) for post in normalized_data])
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer: df.to_excel(writer, index=False)
                     st.download_button("📥 下載 Campaign Pack Excel", buffer.getvalue(), f"Wavemaker_CampaignPack_{topic}.xlsx")
@@ -516,6 +753,7 @@ with tab_vision:
                                 render_campaign_pack(
                                     post,
                                     i,
+                                    strategy_profile=strategy_profile,
                                     image_backend=image_backend,
                                     gemini_image_api_key=api_key,
                                     openai_api_key=openai_api_key,
@@ -525,7 +763,8 @@ with tab_vision:
                                     openai_image_quality=openai_image_quality,
                                 )
 
-                        df = pd.DataFrame([flatten_campaign_pack(post) for post in data])
+                        normalized_data = [apply_active_visual_strategy(post, strategy_profile) for post in data]
+                        df = pd.DataFrame([flatten_campaign_pack(post) for post in normalized_data])
                         buffer = io.BytesIO()
                         with pd.ExcelWriter(buffer, engine='openpyxl') as writer: df.to_excel(writer, index=False)
                         st.download_button("📥 下載視覺 Campaign Pack Excel", buffer.getvalue(), "Wavemaker_Vision_CampaignPack.xlsx")
@@ -572,6 +811,7 @@ with tab_vision:
                                     render_campaign_pack(
                                         post,
                                         i,
+                                        strategy_profile=strategy_profile,
                                         image_backend=image_backend,
                                         gemini_image_api_key=api_key,
                                         openai_api_key=openai_api_key,

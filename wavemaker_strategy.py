@@ -145,7 +145,7 @@ VISUAL_STYLE_PLAYBOOKS = {
     "Q版/chili人像": "cute stylized chibi portrait, playful proportions, character-led emotional appeal",
     "3D盲盒公仔": "3D collectible blind-box figurine style, toy-like material, display-box presentation",
     "paper cutout 立體剪紙藝術": "layered paper cutout art, tactile shadows, dimensional craft, paper texture",
-    "黑版粉筆": "blackboard chalk style, hand-lettered marks, educational warmth, chalk texture",
+    "黑板粉筆板書": "blackboard chalk note style, hand-lettered marks, educational warmth, chalk texture",
     "claymorphism軟萌黏土": "soft claymorphism, rounded tactile shapes, pastel material, cute handmade feel",
     "多彩曼非斯": "colorful Memphis design, geometric forms, playful pattern, energetic composition",
     "自訂": "Use the user's custom visual style instruction.",
@@ -176,6 +176,126 @@ IMAGE_FORMAT_PLAYBOOKS = {
     "3:2 LinkedIn / Presentation": {"aspect_ratio": "3:2", "openai_size": "1536x1024", "usage": "LinkedIn posts, presentation visuals, and business content"},
     "自訂": {"aspect_ratio": "custom", "openai_size": "1024x1024", "usage": "Use the user's custom format instruction."},
 }
+
+
+DEFAULT_IMAGE_FORMAT_BY_PLATFORM = {
+    "Threads": "1:1 IG / Threads",
+    "Instagram Reels": "9:16 Reels / TikTok / Shorts",
+    "Instagram Feed": "4:5 IG Feed",
+    "TikTok": "9:16 Reels / TikTok / Shorts",
+    "Dcard": "1:1 IG / Threads",
+    "Xiaohongshu": "4:5 IG Feed",
+    "Facebook": "1:1 IG / Threads",
+    "LinkedIn": "3:2 LinkedIn / Presentation",
+}
+
+
+def recommend_image_format_for_platform(platform):
+    return DEFAULT_IMAGE_FORMAT_BY_PLATFORM.get(platform, "1:1 IG / Threads")
+
+
+STYLE_RECOMMENDATION_WEIGHTS = {
+    "platform": {
+        "Threads": {"Threads 極簡梗圖風": 6, "社群迷因風": 3, "資訊圖卡風": 1},
+        "Instagram Reels": {"寫實攝影": 4, "韓系清透感": 2, "社群迷因風": 2},
+        "Instagram Feed": {"高級品牌廣告風": 4, "小紅書種草風": 3, "雜誌封面風": 2},
+        "TikTok": {"社群迷因風": 5, "寫實攝影": 3, "3D / CG 渲染": 1},
+        "Dcard": {"日系生活感": 4, "寫實攝影": 3, "資訊圖卡風": 1},
+        "Xiaohongshu": {"小紅書種草風": 6, "韓系清透感": 3, "電商產品主視覺": 1},
+        "Facebook": {"寫實攝影": 4, "資訊圖卡風": 2, "日系生活感": 1},
+        "LinkedIn": {"資訊圖卡風": 5, "高級品牌廣告風": 3, "3D / CG 渲染": 1},
+    },
+    "domain": {
+        "Food & Cooking": {"寫實攝影": 4, "日系生活感": 2, "雜誌封面風": 1},
+        "Travel & Lifestyle": {"日系生活感": 4, "寫實攝影": 3, "雜誌封面風": 2},
+        "AI Workplace": {"3D / CG 渲染": 4, "資訊圖卡風": 3, "高級品牌廣告風": 1},
+        "Corporate Strategy": {"高級品牌廣告風": 4, "資訊圖卡風": 3, "3D / CG 渲染": 1},
+        "Labor Law": {"資訊圖卡風": 4, "黑板粉筆板書": 3, "高級品牌廣告風": 1},
+        "Health & Wellness": {"日系生活感": 3, "寫實攝影": 3, "資訊圖卡風": 2},
+        "Beauty & Skincare": {"韓系清透感": 5, "小紅書種草風": 3, "電商產品主視覺": 2},
+    },
+    "persona": {
+        "Gen Z Trend Hunter": {"社群迷因風": 4, "3D盲盒公仔": 2, "claymorphism軟萌黏土": 1},
+        "Young Urban Professional": {"高級品牌廣告風": 3, "韓系清透感": 2, "資訊圖卡風": 1},
+        "Value-Seeking Family Buyer": {"寫實攝影": 3, "資訊圖卡風": 2, "日系生活感": 1},
+        "Beauty Skincare Explorer": {"韓系清透感": 4, "小紅書種草風": 3, "電商產品主視覺": 1},
+        "Knowledge Worker": {"資訊圖卡風": 4, "黑板粉筆板書": 2, "Threads 極簡梗圖風": 1},
+        "Local Community Insider": {"日系生活感": 3, "寫實攝影": 3, "社群迷因風": 1},
+    },
+    "cultural_voice": {
+        "台灣口語": {"社群迷因風": 2, "Threads 極簡梗圖風": 1},
+        "台語風味": {"手繪風": 2, "日系生活感": 1},
+        "客語風味": {"手繪風": 2, "日系生活感": 1},
+        "晶晶體": {"小紅書種草風": 2, "多彩曼非斯": 1},
+    },
+}
+
+
+LAYOUT_RECOMMENDATION_WEIGHTS = {
+    "platform": {
+        "Threads": {"Quote 卡片": 5, "大標題置中": 3, "單一主視覺 + 短標": 1},
+        "Instagram Reels": {"封面標題 + 小副標": 5, "Before / After": 3, "單一主視覺 + 短標": 1},
+        "Instagram Feed": {"產品置中 + 賣點環繞": 4, "封面標題 + 小副標": 3, "留白高級感": 2},
+        "TikTok": {"大標題置中": 4, "Before / After": 3, "單一主視覺 + 短標": 2},
+        "Dcard": {"三點式重點卡": 4, "上圖下文": 3, "Before / After": 2},
+        "Xiaohongshu": {"九宮格懶人包": 7, "三點式重點卡": 3, "上圖下文": 1},
+        "Facebook": {"上圖下文": 4, "三點式重點卡": 2, "左圖右文": 1},
+        "LinkedIn": {"左圖右文": 4, "三點式重點卡": 3, "留白高級感": 2},
+    },
+    "domain": {
+        "Food & Cooking": {"上圖下文": 3, "單一主視覺 + 短標": 2, "三點式重點卡": 1},
+        "Travel & Lifestyle": {"單一主視覺 + 短標": 4, "封面標題 + 小副標": 2, "上圖下文": 1},
+        "AI Workplace": {"左圖右文": 3, "三點式重點卡": 3, "大標題置中": 1},
+        "Corporate Strategy": {"左圖右文": 4, "留白高級感": 3, "三點式重點卡": 2},
+        "Labor Law": {"三點式重點卡": 4, "左圖右文": 2, "Quote 卡片": 1},
+        "Health & Wellness": {"Before / After": 3, "三點式重點卡": 3, "上圖下文": 1},
+        "Beauty & Skincare": {"產品置中 + 賣點環繞": 4, "Before / After": 3, "留白高級感": 1},
+    },
+    "persona": {
+        "Gen Z Trend Hunter": {"大標題置中": 3, "Quote 卡片": 2, "Before / After": 1},
+        "Young Urban Professional": {"留白高級感": 3, "左圖右文": 2, "三點式重點卡": 1},
+        "Value-Seeking Family Buyer": {"Before / After": 3, "三點式重點卡": 2, "產品置中 + 賣點環繞": 1},
+        "Beauty Skincare Explorer": {"Before / After": 4, "產品置中 + 賣點環繞": 3, "九宮格懶人包": 1},
+        "Knowledge Worker": {"三點式重點卡": 4, "左圖右文": 2, "Quote 卡片": 1},
+        "Local Community Insider": {"上圖下文": 3, "單一主視覺 + 短標": 2, "九宮格懶人包": 1},
+    },
+    "cultural_voice": {
+        "晶晶體": {"大標題置中": 2, "Quote 卡片": 1},
+        "台灣口語": {"Quote 卡片": 2, "單一主視覺 + 短標": 1},
+        "台語風味": {"上圖下文": 2, "Quote 卡片": 1},
+        "客語風味": {"三點式重點卡": 2, "上圖下文": 1},
+    },
+}
+
+
+def _score_visual_options(valid_options, weight_groups, context):
+    scores = {option: 0 for option in valid_options if option != "自訂"}
+    for group_name, group_weights in weight_groups.items():
+        for option, points in group_weights.get(context.get(group_name), {}).items():
+            if option in scores:
+                scores[option] += points
+    return scores
+
+
+def _highest_scored_option(scores, fallback):
+    if not scores:
+        return fallback
+    return max(scores, key=lambda option: (scores[option], -list(scores).index(option)))
+
+
+def recommend_visual_style_and_layout(platform, persona, cultural_voice, domain):
+    context = {
+        "platform": platform,
+        "persona": persona,
+        "cultural_voice": cultural_voice,
+        "domain": domain,
+    }
+    style_scores = _score_visual_options(VISUAL_STYLE_PLAYBOOKS.keys(), STYLE_RECOMMENDATION_WEIGHTS, context)
+    layout_scores = _score_visual_options(LAYOUT_PLAYBOOKS.keys(), LAYOUT_RECOMMENDATION_WEIGHTS, context)
+    return {
+        "visual_style": _highest_scored_option(style_scores, "寫實攝影"),
+        "layout_structure": _highest_scored_option(layout_scores, "單一主視覺 + 短標"),
+    }
 
 
 PERSONA_PLAYBOOKS = {
